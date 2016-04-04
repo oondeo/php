@@ -21,7 +21,7 @@ if [ -f /etc/php/php.ini ]
 then
     cp /etc/php/php.ini /usr/local/etc/php.ini
     sed -i '/include_path/d' /usr/local/etc/php.ini
-    echo "include_path=\".:$ROOT/include:/usr/share/php\"" >> /usr/local/etc/php.ini
+    echo "include_path=\".:$ROOT/include:/usr/local/lib/php:/usr/share/php\"" >> /usr/local/etc/php.ini
     OPTS=" -c /usr/local/etc/php.ini $OPTS"
 fi
 
