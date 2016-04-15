@@ -37,8 +37,6 @@ RUN chown -R www-data /usr/local/etc
 
 ADD start.sh /start.sh
 
-USER www-data
-
 ENV OPTS="" ROOT="/var/www"
 
 VOLUME [ "/etc/php" ]
