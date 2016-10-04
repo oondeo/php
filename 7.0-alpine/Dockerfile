@@ -7,22 +7,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libjpeg62-turbo-dev libpng12-dev libsqlite3-dev curl libssl-dev libcurl4-openssl-dev \
         && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN docker-php-ext-install -j$(nproc) soap bcmath mcrypt intl iconv \  
+RUN docker-php-ext-install -j$(nproc) soap bcmath mcrypt intl iconv \
     && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
     && docker-php-ext-install -j$(nproc) mysqli mcrypt xsl zip gd pdo pdo_mysql pdo_sqlite json curl dom hash bcmath gettext mbstring phar simplexml \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/etc/php/conf.d
 
-ENV PHPREDIS_VERSION=php7 APCU_VERSION=5.1.3 XDEBUG_VERSION=2.4.0
+ENV PHPREDIS_VERSION=3.0.0 APCU_VERSION=5.1.3 XDEBUG_VERSION=2.4.0
 
 RUN pecl install apcu-$APCU_VERSION xdebug-$XDEBUG_VERSION \
     && pear install DB MDB2 Mail Mail_Mime Mail_mimeDecode Log  HTTP_Request2 XML_RPC2 Date \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-#    #&& curl -q https://codeload.github.com/phpredis/phpredis/tar.gz/$PHPREDIS_VERSION | tar -xz \
-#RUN cd /usr/src/php/ext \
-#    && curl -sL https://github.com/phpredis/phpredis/archive/php7.zip > phpredis.zip \
-#    unzip phpredis.zip && rm phpredis.zip \
-#    && docker-php-ext-install phpredis-$PHPREDIS_VERSION 
+    && cd /usr/src/php/ext \
+   && curl -sL https://github.com/phpredis/phpredis/archive/php7.zip > phpredis.zip \
+   && unzip phpredis.zip && rm phpredis.zip \
+   && docker-php-ext-install phpredis-$PHPREDIS_VERSION \
+   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/etc/php/conf.d
 
 # Install php tools (composer / phpunit)
 RUN cd /tmp && \
@@ -35,6 +33,8 @@ RUN cd /tmp && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN chown -R www-data /usr/local/etc
+
+ADD php.ini /usr/local/etc/php/php.ini
 
 ADD start.sh /start.sh
 
