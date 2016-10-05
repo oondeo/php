@@ -19,8 +19,8 @@ RUN pecl install apcu-$APCU_VERSION apcu_bc-$APCU_BC_VERSION xdebug-$XDEBUG_VERS
     && mkdir -p  /usr/src/php/ext && cd /usr/src/php/ext \
    && curl -sL https://github.com/phpredis/phpredis/archive/$PHPREDIS_VERSION.zip -o phpredis.zip \
    && unzip phpredis.zip && rm phpredis.zip \
-   && docker-php-ext-install phpredis-$PHPREDIS_VERSION \
-   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/etc/php/conf.d/*  /usr/src/php/ext/*
+   && docker-php-ext-install -j$(nproc) phpredis-$PHPREDIS_VERSION \
+   && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/etc/php/conf.d/*
 
 # Install php tools (composer / phpunit)
 RUN cd /tmp && \
