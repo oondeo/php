@@ -34,6 +34,7 @@ RUN chown -R www-data /usr/local/etc
 
 ADD php.ini /usr/local/etc/php/
 ADD docker.conf /usr/local/etc/php-fpm.d/docker.conf
+ADD zz-docker.conf /usr/local/etc/php-fpm.d/zz-docker.conf
 
 ADD start.sh /start.sh
 
