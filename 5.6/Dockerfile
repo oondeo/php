@@ -16,9 +16,9 @@ ENV PHPREDIS_VERSION=2.2.7 APCU_VERSION=4.0.10 XDEBUG_VERSION=2.3.3
 
 RUN pecl install apcu-$APCU_VERSION xdebug-$XDEBUG_VERSION \
     && pear install DB MDB2 Mail Mail_Mime Mail_mimeDecode Log  HTTP_Request2 XML_RPC2 Date \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/etc/php/conf.d/* /usr/src/php/ext/*
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/etc/php/conf.d/*
 
-RUN cd /usr/src/php/ext \
+RUN mkdir -p /usr/src/php/ext && cd /usr/src/php/ext \
     && curl -q https://codeload.github.com/phpredis/phpredis/tar.gz/$PHPREDIS_VERSION | tar -xz \
     && docker-php-ext-install -j$(nproc) phpredis-$PHPREDIS_VERSION && rm -rf /usr/local/etc/php/conf.d/*
 
