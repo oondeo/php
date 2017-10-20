@@ -1,0 +1,330 @@
+apiVersion: v1
+kind: Template
+labels:
+  template: php-mysql-example
+message: |-
+  The following service(s) have been created in your project: ${NAME}, ${DATABASE_SERVICE_NAME}.
+
+metadata:
+  annotations:
+    description: |-
+      An example PH application with a MySQL database.
+
+      NOTE: The MySQL service created by this template uses non-persistent storage. To setup persisted storage, change this template to use a persistent volume claim instead of emptydir.
+    iconClass: icon-php
+    openshift.io/display-name: PHP + MySQL (Ephemeral)
+    tags: instant-app,php,wordpress
+  name: php-mysql-example
+  namespace: openshift
+objects:
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes and load balances the application pods
+      service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
+        "kind": "Service"}]'
+    name: php-mysql-example
+  spec:
+    ports:
+    - name: web
+      port: 8080
+      targetPort: 8080
+    selector:
+      name: php-mysql-example
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes and load balances the application pods
+      service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
+        "kind": "Service"}]'
+    name: php-mysql-example1
+  spec:
+    ports:
+    - name: web1
+      port: 8081
+      targetPort: 8081
+    selector:
+      name: php-mysql-example      
+- apiVersion: v1
+  kind: Route
+  metadata:
+    annotations:
+      template.openshift.io/expose-uri: http://{.spec.host}{.spec.path}
+    name: php-mysql-example
+  spec:
+    host: ${APPLICATION_DOMAIN}
+    to:
+      kind: Service
+      name: php-mysql-example
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    annotations:
+      description: Keeps track of changes in the application image
+    name: php-mysql-example
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    annotations:
+      description: Defines how to build the application
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: php-mysql-example
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: php-mysql-example:latest
+    source:
+      contextDir: ${CONTEXT_DIR}
+      git:
+        ref: ${SOURCE_REPOSITORY_REF}
+        uri: ${SOURCE_REPOSITORY_URL}
+      type: Git
+    strategy:
+      sourceStrategy:
+        from:
+          kind: ImageStreamTag
+          name: php:5
+          namespace: openshift
+      type: Source
+    triggers:
+    - type: ImageChange
+    - type: ConfigChange
+    - github:
+        secret: ${GITHUB_WEBHOOK_SECRET}
+      type: GitHub
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the application server
+      template.alpha.openshift.io/wait-for-ready: "true"
+    name: php-mysql-example
+  spec:
+    replicas: 1
+    selector:
+      name: php-mysql-example
+    strategy:
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          name: php-mysql-example
+        name: php-mysql-example
+      spec:
+        containers:
+        - image: oondeo/openresty:jessie
+          imagePullPolicy: IfNotPresent
+          name: nginx
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          - containerPort: 8081
+            protocol: TCP     
+          readinessProbe:
+            httpGet:
+              path: /health.php
+              port: 8080
+            initialDelaySeconds: 3
+            timeoutSeconds: 3                 
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /opt/app-root/src
+            name: data
+          - mountPath: /tmp
+            name: tmpdir   
+          env:
+          - name: DOMAIN_PROD
+            value: ${APPLICATION_DOMAIN}   
+          - name: DOMAIN_DEV
+            value: ${DOMAIN_DEV}
+          - name: NGINX_CACHE
+            value: ${CACHE}                                
+        - env:
+          - name: PHPINI_OPCACHE_ENABLE
+            value: ${CACHE}
+          - name: DATABASE_SERVICE_NAME
+            value: ${DATABASE_SERVICE_NAME}
+          - name: DATABASE_ENGINE
+            value: ${DATABASE_ENGINE}
+          - name: DATABASE_NAME
+            value: ${DATABASE_NAME}
+          - name: DATABASE_USER
+            value: ${DATABASE_USER}
+          - name: DATABASE_PASSWORD
+            value: ${DATABASE_PASSWORD}
+          image: php-mysql-example
+          name: php-mysql-example
+          ports:
+          - containerPort: 9000
+          readinessProbe:
+            tcpSocket:
+              port: 9000
+            initialDelaySeconds: 5
+            periodSeconds: 10          
+          resources:
+            limits:
+              memory: ${MEMORY_LIMIT}          
+          volumeMounts:
+          - mountPath: /var/lib/mysql/data
+            name: ${DATABASE_SERVICE_NAME}-data
+          - mountPath: /opt/app-root/src
+            name: data
+          - mountPath: /tmp
+            name: tmpdir             
+        volumes:
+        - emptyDir:
+            medium: ""
+          name: ${DATABASE_SERVICE_NAME}-data
+        - emptyDir:
+            medium: "" 
+          name: data
+        - emptyDir:
+            medium: ""
+          name: tmpdir          
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - php-mysql-example
+        from:
+          kind: ImageStreamTag
+          name: php-mysql-example:latest
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes the database server
+    name: ${DATABASE_SERVICE_NAME}
+  spec:
+    ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+    selector:
+      name: ${DATABASE_SERVICE_NAME}
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the database
+    name: ${DATABASE_SERVICE_NAME}
+  spec:
+    replicas: 1
+    selector:
+      name: ${DATABASE_SERVICE_NAME}
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          name: ${DATABASE_SERVICE_NAME}
+        name: ${DATABASE_SERVICE_NAME}
+      spec:
+        containers:
+        - env:
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: ${NAME}
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: ${NAME}
+          - name: MYSQL_DATABASE
+            value: ${DATABASE_NAME}
+          image: ' '
+          livenessProbe:
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 3306
+            timeoutSeconds: 1
+          name: mysql
+          ports:
+          - containerPort: 3306
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - MYSQL_PWD='${DATABASE_PASSWORD}' mysql -h 127.0.0.1 -u ${DATABASE_USER}
+                -D ${DATABASE_NAME} -e 'SELECT 1'
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: ${MEMORY_MYSQL_LIMIT}
+          volumeMounts:
+          - mountPath: /var/lib/mysql/data
+            name: ${DATABASE_SERVICE_NAME}-data
+        volumes:
+        - name: ${DATABASE_SERVICE_NAME}-data
+          persistentVolumeClaim:
+            claimName: ${DATABASE_SERVICE_NAME}
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - mysql
+        from:
+          kind: ImageStreamTag
+          name: mysql:5.7
+          namespace: openshift
+      type: ImageChange
+    - type: ConfigChange
+parameters:
+- description: The URL of the repository with your application source code
+  name: SOURCE_REPOSITORY_URL
+  value: https://github.com/wordpress/wordpress.git
+- description: Set this to a branch name, tag or other ref of your repository if you
+    are not using the default branch
+  name: SOURCE_REPOSITORY_REF
+- description: Set this to the relative path to your project if it is not in the root
+    of your repository
+  name: CONTEXT_DIR
+- description: The exposed hostname that will route to the php service, if left
+    blank a value will be defaulted.
+  name: APPLICATION_DOMAIN
+- description: Maximum amount of memory the PHP container can use.
+  displayName: Memory Limit
+  name: MEMORY_LIMIT
+  required: true
+  value: 512Mi  
+- description: Github trigger secret.  A difficult to guess string encoded as part
+    of the webhook URL.  Not encrypted.
+  from: '[a-zA-Z0-9]{40}'
+  generate: expression
+  name: GITHUB_WEBHOOK_SECRET
+- description: Database service name
+  name: DATABASE_SERVICE_NAME
+  value: mysql
+- description: Database name
+  name: DATABASE_NAME
+  value: phpexample
+- description: Database user name
+  name: DATABASE_USER
+  value: phpexample
+- description: Database user password
+  from: '[a-zA-Z0-9]{16}'
+  generate: expression
+  name: DATABASE_PASSWORD
+- description: Maximum amount of memory the MySQL container can use.
+  displayName: Memory Limit (MySQL)
+  name: MEMORY_MYSQL_LIMIT
+  required: true
+  value: 512Mi
+- description: Activate cache
+  name: CACHE
+  required: true
+  value: "false"
+- description: developer internet domain internet domain, you must create a route for it
+  name: DOMAIN_DEV
+  required: true
+  value: example.127.0.0.1.nip.io
