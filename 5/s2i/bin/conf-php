@@ -1,7 +1,11 @@
 #!/bin/bash
 
 PHP_INI_PATH=${PHP_INI_PATH:-/opt/app-root/etc/php.ini}
-
+XDEBUG=${XDEBUG:-false}
+if [ "$XDEBUG" == "0" ] || [ "$NGINX_CACHE" == "false" ] || [ "$NGINX_CACHE" == "FALSE" ]
+then
+    sed -i "/xdebug/d" $PHP_INI_PATH
+fi
 while IFS='=' read -r name value ; do
   if [[ $name == 'PHPINI_'* ]]; then
     name="${name/PHPINI_/}"
@@ -10,7 +14,7 @@ while IFS='=' read -r name value ; do
     sed -i "/$name[ =].*/d" $PHP_INI_PATH
     if [ "$value" != "" ]
     then
-      echo "$name = $value " >> $PHP_INI_PATH
+      echo "$name = ${value//\//\\/} " >> $PHP_INI_PATH
     fi
   fi
 done < <(env)

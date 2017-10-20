@@ -145,6 +145,10 @@ objects:
         - env:
           - name: PHPINI_OPCACHE_ENABLE
             value: ${CACHE}
+          - name: PHPINI_APC_ENABLE
+            value: ${CACHE} 
+          - name: DEBUG_ENABLE
+            value: ${DEBUG}                        
           - name: DATABASE_SERVICE_NAME
             value: ${DATABASE_SERVICE_NAME}
           - name: DATABASE_ENGINE
@@ -324,6 +328,10 @@ parameters:
   name: CACHE
   required: true
   value: "false"
+- description: Activate debug
+  name: DEBUG
+  required: true
+  value: "true"  
 - description: developer internet domain internet domain, you must create a route for it
   name: DOMAIN_DEV
   required: true
