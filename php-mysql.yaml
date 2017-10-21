@@ -258,8 +258,8 @@ objects:
               - /bin/sh
               - -i
               - -c
-              - MYSQL_PWD='${DATABASE_PASSWORD}' mysql -h 127.0.0.1 -u ${DATABASE_USER}
-                -D ${DATABASE_NAME} -e 'SELECT 1'
+              - mysql -h 127.0.0.1 -u ${DATABASE_USER}
+                --password='${DATABASE_PASSWORD}' ${DATABASE_NAME} -e 'SELECT 1'
             initialDelaySeconds: 5
             timeoutSeconds: 1
           resources:
@@ -279,7 +279,7 @@ objects:
         - mysql
         from:
           kind: ImageStreamTag
-          name: mysql:5.7
+          name: mariadb:latest
           namespace: openshift
       type: ImageChange
     - type: ConfigChange

@@ -87,6 +87,9 @@ RUN cd /tmp && \
     mv phpunit.phar /usr/local/bin/phpunit && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends git \
+       && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
+
 RUN mkdir -p /opt/app-root/etc/php /opt/app-root/etc/php-fpm.d
 ENV PHP_INI_PATH="/opt/app-root/etc/php/php.ini" \
     PHP_FPM_PATH="/opt/app-root/etc/php-fpm.d" \
