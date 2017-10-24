@@ -113,7 +113,7 @@ EXPOSE 9000
 
 
 
-CMD [ "run" ]
+CMD [ "$STI_SCRIPTS_PATH/run" ]
 
 
 # Reset permissions of modified directories and add default user
