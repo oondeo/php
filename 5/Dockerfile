@@ -63,13 +63,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends libbz2-dev libz
         && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
 
 #included in php: mysqlnd curl 
-ENV PHP_EXTENSIONS="soap iconv intl bz2 gmp mysql mysqli mcrypt xsl zip gd pdo pdo_mysql pdo_sqlite json dom hash bcmath gettext mbstring phar simplexml"
+ENV PHP_EXTENSIONS="soap iconv intl bz2 gmp sqlite mysql mysqli mcrypt xsl zip gd pdo pdo_mysql pdo_sqlite json dom hash bcmath gettext mbstring phar simplexml"
 RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
     && ln -s /usr/include/x86_64-linux-gnu/gmp.h /usr/include/gmp.h \
     && docker-php-ext-install -j$(nproc)  ${PHP_EXTENSIONS} \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/etc/php/conf.d/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
 
-ENV PHPREDIS_VERSION=3.1.4 APCU_VERSION=5.1.8 XDEBUG_VERSION=2.5.5
+ENV PHPREDIS_VERSION=3.1.4 APCU_VERSION=4.0.11 XDEBUG_VERSION=2.5.5
 
 RUN pecl install apcu-$APCU_VERSION xdebug-$XDEBUG_VERSION redis-${PHPREDIS_VERSION} \
     && pear install DB MDB2 Mail Mail_Mime Mail_mimeDecode Log  HTTP_Request2 XML_RPC2 Date \
@@ -96,9 +96,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 ENV PHP_INI_PATH="/opt/app-root/etc/php.ini" \
     PHP_FPM_PATH="/opt/app-root/etc/php-fpm.conf" \
     PHP_FPMD_PATH="/opt/app-root/etc/php-fpm.d" \
-    PHP_LIB_PATH="/opt/app-root/lib/php" \
-    OPTS=" --fpm-config=\$PHP_FPM_PATH -c \$PHP_INI_PATH "
+    PHP_LIB_PATH="/opt/app-root/lib/php" 
+
 RUN mkdir -p $PHP_FPMD_PATH $PHP_LIB_PATH
+ENV OPTS=" --fpm-config=$PHP_FPM_PATH -c $PHP_INI_PATH "
 
 ADD php.ini $PHP_INI_PATH
 ADD php-fpm.d $PHP_FPMD_PATH
