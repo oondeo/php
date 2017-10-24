@@ -40,7 +40,6 @@ ENV BASH_ENV=/opt/app-root/etc/scl_enable \
 
 # Copy extra files to the image.
 COPY ./root/root/ /
-COPY ./s2i/bin/ $STI_SCRIPTS_PATH
 
 #Install tiny on debian 
 ENV TINI_VERSION=v0.16.1
@@ -56,6 +55,7 @@ RUN cp /bin/sh /sh && apt-get update && apt-get install -y --no-install-recommen
 WORKDIR ${HOME}
 
 ENTRYPOINT ["/sbin/tini", "-g" ,"--", "container-entrypoint"]
+
 
 RUN apt-get update && apt-get install -y --no-install-recommends libbz2-dev libzip-dev \
         libmcrypt-dev libicu-dev libfreetype6-dev libpcre3-dev libxml2-dev libxslt1.1 libxslt1-dev \
@@ -119,6 +119,7 @@ EXPOSE 9000
 
 CMD [ "$STI_SCRIPTS_PATH/run" ]
 
+ADD s2i/bin $STI_SCRIPTS_PATH
 
 # Reset permissions of modified directories and add default user
 RUN useradd -u 1001 -r -g 0 -d ${HOME} -s /sbin/nologin \
