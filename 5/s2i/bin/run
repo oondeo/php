@@ -21,6 +21,6 @@ STI_SCRIPTS_PATH=${STI_SCRIPTS_PATH:-/usr/libexec/s2i}
 # envsubst < /opt/app-root/etc/conf.d/00-documentroot.conf.template > /opt/app-root/etc/conf.d/00-documentroot.conf
 
 echo "Apply environment variables attributes"
-exec $STI_SCRIPTS_PATH/conf-php
+$STI_SCRIPTS_PATH/conf-php
 echo "Starting server"
-exec $STI_SCRIPTS_PATH/php-fpm $OPTS
+exec php-fpm $OPTS

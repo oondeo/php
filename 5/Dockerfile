@@ -20,10 +20,12 @@ ENV \
     # DEPRECATED: Use above LABEL instead, because this will be removed in future versions.
     STI_SCRIPTS_URL=image:///usr/libexec/s2i \
     # Path to be used in other layers to place s2i scripts into
-    STI_SCRIPTS_PATH=/usr/libexec/s2i \
+    STI_SCRIPTS_PATH=/usr/libexec/s2i
+
+ENV \
     # The $HOME is not set by default, but some applications needs this variable
     HOME=/opt/app-root/src \
-    PATH=/opt/app-root/src/bin:/opt/app-root/bin:$PATH
+    PATH=/opt/app-root/src/bin:/opt/app-root/bin:$STI_SCRIPTS_PATH:$PATH
 
 
 # When bash is started non-interactively, to run a shell script, for example it
@@ -92,19 +94,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 
 RUN mkdir -p /opt/app-root/etc/php /opt/app-root/etc/php-fpm.d
 ENV PHP_INI_PATH="/opt/app-root/etc/php/php.ini" \
-    PHP_FPM_PATH="/opt/app-root/etc/php-fpm.d" \
+    PHP_FPM_PATH="/opt/app-root/etc/php-fpm.conf" \
     PHP_LIB_PATH="/opt/app-root/lib/php" \
-    OPTS=" --fpm-config=/usr/local/etc/php-fpm.conf -c \$PHP_INI_PATH "
+    OPTS=" --fpm-config=\$PHP_FPM_PATH -c \$PHP_INI_PATH "
 
 ADD php.ini $PHP_INI_PATH
+ADD php-fpm.conf $PHP_FPM_PATH
+COPY php-fpm.d /opt/app-root/etc/php-fpm.d
+
 # ADD docker.conf /opt/app-root/etc/php-fpm.d/docker.conf
 # ADD zz-docker.conf /opt/app-root/etc/php-fpm.d/zz-docker.conf
 RUN mkdir -p ${PHP_LIB_PATH} \
-    && mkdir -p $PHP_FPM_PATH \
-    && { \
-			echo '[global]'; \
-			echo "include=$PHP_FPM_PATH/etc/php-fpm.d/*.conf"; \
-    } | tee /usr/local/etc/php-fpm.d/user.conf \
     && sed -i '/include_path/d' $PHP_INI_PATH \
     && echo "include_path=\".:$HOME/app/include:$HOME/include:$PHP_LIB_PATH:/usr/local/lib/php:/usr/share/php\"" >> /opt/app-root/etc/php.ini
 

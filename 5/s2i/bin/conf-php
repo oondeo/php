@@ -2,7 +2,7 @@
 
 PHP_INI_PATH=${PHP_INI_PATH:-/opt/app-root/etc/php.ini}
 XDEBUG=${XDEBUG:-false}
-if [ "$XDEBUG" == "0" ] || [ "$NGINX_CACHE" == "false" ] || [ "$NGINX_CACHE" == "FALSE" ]
+if [ "$XDEBUG" == "0" ] || [ "$XDEBUG" == "false" ] || [ "$XDEBUG" == "FALSE" ]
 then
     sed -i "/xdebug/d" $PHP_INI_PATH
 fi
