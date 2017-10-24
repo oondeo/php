@@ -92,19 +92,23 @@ RUN cd /tmp && \
 RUN apt-get update && apt-get install -y --no-install-recommends git \
        && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
 
-RUN mkdir -p /opt/app-root/etc/php /opt/app-root/etc/php-fpm.d
-ENV PHP_INI_PATH="/opt/app-root/etc/php/php.ini" \
+
+ENV PHP_INI_PATH="/opt/app-root/etc/php.ini" \
     PHP_FPM_PATH="/opt/app-root/etc/php-fpm.conf" \
+    PHP_FPMD_PATH="/opt/app-root/etc/php-fpm.d" \
     PHP_LIB_PATH="/opt/app-root/lib/php" \
     OPTS=" --fpm-config=\$PHP_FPM_PATH -c \$PHP_INI_PATH "
+RUN mkdir -p $PHP_FPMD_PATH $PHP_LIB_PATH
 
 ADD php.ini $PHP_INI_PATH
-ADD php-fpm.conf $PHP_FPM_PATH
-COPY php-fpm.d /opt/app-root/etc/php-fpm.d
+ADD php-fpm.d $PHP_FPMD_PATH
 
 # ADD docker.conf /opt/app-root/etc/php-fpm.d/docker.conf
 # ADD zz-docker.conf /opt/app-root/etc/php-fpm.d/zz-docker.conf
-RUN mkdir -p ${PHP_LIB_PATH} \
+RUN { \
+			echo '[global]'; \
+			echo "include=$PHP_FPMD_PATH/*.conf"; \
+    } | tee ${PHP_FPM_PATH} \
     && sed -i '/include_path/d' $PHP_INI_PATH \
     && echo "include_path=\".:$HOME/app/include:$HOME/include:$PHP_LIB_PATH:/usr/local/lib/php:/usr/share/php\"" >> /opt/app-root/etc/php.ini
 
