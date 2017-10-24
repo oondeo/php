@@ -89,7 +89,7 @@ RUN cd /tmp && \
     mv phpunit.phar /usr/local/bin/phpunit && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends git \
+RUN apt-get update && apt-get install -y --no-install-recommends git zip unzip \
        && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
 
 
@@ -106,7 +106,8 @@ ADD php-fpm.d $PHP_FPMD_PATH
 
 # ADD docker.conf /opt/app-root/etc/php-fpm.d/docker.conf
 # ADD zz-docker.conf /opt/app-root/etc/php-fpm.d/zz-docker.conf
-RUN { \
+RUN rm -f /usr/local/etc/php/php.ini && ln -s ${PHP_INI_PATH} /usr/local/etc/php/ \
+    && { \
 			echo '[global]'; \
 			echo "include=$PHP_FPMD_PATH/*.conf"; \
     } | tee ${PHP_FPM_PATH} \

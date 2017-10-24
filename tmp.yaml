@@ -1,125 +1,10 @@
-apiVersion: v1
-kind: Template
-labels:
-  template: php-mysql-example
-message: |-
-  The following service(s) have been created in your project: ${APPLICATION_NAME}, ${APPLICATION_NAME}.
-
-metadata:
-  annotations:
-    description: |-
-      An example PH application with a MySQL database.
-
-      NOTE: The MySQL service created by this template uses non-persistent storage. To setup persisted storage, change this template to use a persistent volume claim instead of emptydir.
-    iconClass: icon-php
-    openshift.io/display-name: PHP + MySQL (Ephemeral)
-    tags: instant-app,php,wordpress
-  name: php-mysql-example
-  namespace: openshift
-objects:
-- apiVersion: v1
-  kind: Secret
-  metadata:
-    name: ${APPLICATION_NAME}
-  stringData:
-    database-password: ${DATABASE_PASSWORD}
-    database-root-password: ${DATABASE_ROOT_PASSWORD}
-    database-user: ${DATABASE_USER}
-- apiVersion: v1
-  kind: Service
-  metadata:
-    annotations:
-      description: Exposes and load balances the application pods
-      service.alpha.openshift.io/dependencies: '[{"name": "${APPLICATION_NAME}",
-        "kind": "Service"}]'
-    name: ${APPLICATION_NAME}
-  spec:
-    ports:
-    - name: web
-      port: 8080
-      targetPort: 8080
-    selector:
-      name: ${APPLICATION_NAME}
-- apiVersion: v1
-  kind: Service
-  metadata:
-    annotations:
-      description: Exposes and load balances the application pods
-      service.alpha.openshift.io/dependencies: '[{"name": "${APPLICATION_NAME}",
-        "kind": "Service"}]'
-    name: ${APPLICATION_NAME}1
-  spec:
-    ports:
-    - name: web1
-      port: 8081
-      targetPort: 8081
-    selector:
-      name: ${APPLICATION_NAME}      
-- apiVersion: v1
-  kind: Route
-  metadata:
-    annotations:
-      template.openshift.io/expose-uri: http://{.spec.host}{.spec.path}
-    name: ${APPLICATION_NAME}
-  spec:
-    host: ${APPLICATION_DOMAIN}
-    to:
-      kind: Service
-      name: ${APPLICATION_NAME}
-- apiVersion: v1
-  kind: Route
-  metadata:
-    annotations:
-      template.openshift.io/expose-uri: http://{.spec.host}{.spec.path}
-    name: ${APPLICATION_NAME}1
-  spec:
-    host: ${DOMAIN_DEV}
-    to:
-      kind: Service
-      name: ${APPLICATION_NAME}1   
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    annotations:
-      description: Keeps track of changes in the application image
-    name: ${APPLICATION_NAME}-nginx         
+    
 - apiVersion: v1
   kind: ImageStream
   metadata:
     annotations:
       description: Keeps track of changes in the application image
     name: ${APPLICATION_NAME}
-- apiVersion: v1
-  kind: BuildConfig
-  metadata:
-    annotations:
-      description: Defines how to build the application
-      template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${APPLICATION_NAME}-nginx
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${APPLICATION_NAME}-nginx:latest
-    source:
-      contextDir: ${CONTEXT_DIR}
-      git:
-        ref: ${SOURCE_REPOSITORY_REF}
-        uri: ${SOURCE_REPOSITORY_URL}
-      type: Git
-    strategy:
-      sourceStrategy:
-        from:
-          kind: ImageStreamTag
-          name: 'nginx:latest'
-          namespace: openshift
-      type: Source
-    triggers:
-    - type: ImageChange
-    - type: ConfigChange
-    - github:
-        secret: ${GITHUB_WEBHOOK_SECRET}
-      type: GitHub          
 - apiVersion: v1
   kind: BuildConfig
   metadata:
@@ -171,8 +56,9 @@ objects:
         name: ${APPLICATION_NAME}
       spec:
         containers:
-        - image: ${APPLICATION_NAME}-nginx
-          name: ${APPLICATION_NAME}-nginx
+        - image: oondeo/openresty:jessie
+          imagePullPolicy: IfNotPresent
+          name: nginx
           ports:
           - containerPort: 8080
             protocol: TCP
@@ -180,7 +66,7 @@ objects:
             protocol: TCP     
           readinessProbe:
             httpGet:
-              path: /README.md
+              path: /health.php
               port: 8080
             initialDelaySeconds: 3
             timeoutSeconds: 3                 
@@ -194,7 +80,7 @@ objects:
           - name: DOMAIN_DEV
             value: ${DOMAIN_DEV}
           - name: NGINX_CACHE
-            value: ${CACHE}                                            
+            value: ${CACHE}                                
         - env:
           - name: PHPINI_OPCACHE_ENABLE
             value: ${CACHE}
@@ -241,14 +127,6 @@ objects:
             medium: ""
           name: tmpdir          
     triggers:
-    - imageChangeParams:
-        automatic: true
-        containerNames:
-        - ${APPLICATION_NAME}-nginx
-        from:
-          kind: ImageStreamTag
-          name: ${APPLICATION_NAME}-nginx:latest
-      type: ImageChange    
     - imageChangeParams:
         automatic: true
         containerNames:
