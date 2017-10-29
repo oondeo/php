@@ -130,4 +130,3 @@ RUN useradd -u 1001 -r -g 0 -d ${HOME} -s /sbin/nologin \
     && mkdir -p ${HOME}/.pki/nssdb \
     && chown -R 1001:0 ${HOME}/.pki 
 USER 1001    
-VOLUME [ "/opt/app-root/etc", "/opt/app-root/lib" ,"/opt/app-root/src" ]

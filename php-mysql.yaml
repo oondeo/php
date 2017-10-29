@@ -3,7 +3,7 @@ kind: Template
 labels:
   template: php-mysql-example
 message: |-
-  The following service(s) have been created in your project: ${APPLICATION_NAME}, ${APPLICATION_NAME}.
+  The following service(s) have been created in your project: ${NAME}, ${NAME}.
 
 metadata:
   annotations:
@@ -13,14 +13,14 @@ metadata:
       NOTE: The MySQL service created by this template uses non-persistent storage. To setup persisted storage, change this template to use a persistent volume claim instead of emptydir.
     iconClass: icon-php
     openshift.io/display-name: PHP + MySQL (Ephemeral)
-    tags: instant-app,php,wordpress
+    tags: quickstart,instant-app,php,wordpress
   name: php-mysql-example
   namespace: openshift
 objects:
 - apiVersion: v1
   kind: Secret
   metadata:
-    name: ${APPLICATION_NAME}
+    name: ${NAME}
   stringData:
     database-password: ${DATABASE_PASSWORD}
     database-root-password: ${DATABASE_ROOT_PASSWORD}
@@ -30,108 +30,71 @@ objects:
   metadata:
     annotations:
       description: Exposes and load balances the application pods
-      service.alpha.openshift.io/dependencies: '[{"name": "${APPLICATION_NAME}",
+      service.alpha.openshift.io/dependencies: '[{"name": "${NAME}",
         "kind": "Service"}]'
-    name: ${APPLICATION_NAME}
+    name: ${NAME}
   spec:
     ports:
     - name: web
       port: 8080
       targetPort: 8080
     selector:
-      name: ${APPLICATION_NAME}
+      name: ${NAME}
 - apiVersion: v1
   kind: Service
   metadata:
     annotations:
       description: Exposes and load balances the application pods
-      service.alpha.openshift.io/dependencies: '[{"name": "${APPLICATION_NAME}",
+      service.alpha.openshift.io/dependencies: '[{"name": "${NAME}",
         "kind": "Service"}]'
-    name: ${APPLICATION_NAME}1
+    name: ${NAME}1
   spec:
     ports:
     - name: web1
       port: 8081
       targetPort: 8081
     selector:
-      name: ${APPLICATION_NAME}      
+      name: ${NAME}      
 - apiVersion: v1
   kind: Route
   metadata:
     annotations:
       template.openshift.io/expose-uri: http://{.spec.host}{.spec.path}
-    name: ${APPLICATION_NAME}
+    name: ${NAME}
   spec:
     host: ${APPLICATION_DOMAIN}
     to:
       kind: Service
-      name: ${APPLICATION_NAME}
+      name: ${NAME}
 - apiVersion: v1
   kind: Route
   metadata:
     annotations:
       template.openshift.io/expose-uri: http://{.spec.host}{.spec.path}
-    name: ${APPLICATION_NAME}1
+    name: ${NAME}1
   spec:
     host: ${DOMAIN_DEV}
     to:
       kind: Service
-      name: ${APPLICATION_NAME}1   
+      name: ${NAME}1         
 - apiVersion: v1
   kind: ImageStream
   metadata:
     annotations:
       description: Keeps track of changes in the application image
-    name: ${APPLICATION_NAME}-nginx         
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    annotations:
-      description: Keeps track of changes in the application image
-    name: ${APPLICATION_NAME}
+    name: ${NAME}  
 - apiVersion: v1
   kind: BuildConfig
   metadata:
     annotations:
       description: Defines how to build the application
       template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${APPLICATION_NAME}-nginx
+    name: ${NAME}
   spec:
     output:
       to:
         kind: ImageStreamTag
-        name: ${APPLICATION_NAME}-nginx:latest
-    source:
-      contextDir: ${CONTEXT_DIR}
-      git:
-        ref: ${SOURCE_REPOSITORY_REF}
-        uri: ${SOURCE_REPOSITORY_URL}
-      type: Git
-    strategy:
-      sourceStrategy:
-        from:
-          kind: ImageStreamTag
-          name: 'nginx:latest'
-          namespace: openshift
-      type: Source
-    triggers:
-    - type: ImageChange
-    - type: ConfigChange
-    - github:
-        secret: ${GITHUB_WEBHOOK_SECRET}
-      type: GitHub          
-- apiVersion: v1
-  kind: BuildConfig
-  metadata:
-    annotations:
-      description: Defines how to build the application
-      template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${APPLICATION_NAME}
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${APPLICATION_NAME}:latest
+        name: ${NAME}:latest
     source:
       contextDir: ${CONTEXT_DIR}
       git:
@@ -157,105 +120,86 @@ objects:
     annotations:
       description: Defines how to deploy the application server
       template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${APPLICATION_NAME}
+    name: ${NAME}
   spec:
     replicas: 1
     selector:
-      name: ${APPLICATION_NAME}
+      name: ${NAME}
     strategy:
-      type: Rolling
+      type: Recreate
     template:
       metadata:
         labels:
-          name: ${APPLICATION_NAME}
-        name: ${APPLICATION_NAME}
+          name: ${NAME}
+        name: ${NAME}
       spec:
         containers:
-        - image: ${APPLICATION_NAME}-nginx
-          name: ${APPLICATION_NAME}-nginx
-          ports:
+        - ports:
           - containerPort: 8080
             protocol: TCP
           - containerPort: 8081
             protocol: TCP     
-          readinessProbe:
-            httpGet:
-              path: /README.md
-              port: 8080
-            initialDelaySeconds: 3
-            timeoutSeconds: 3                 
-          terminationMessagePath: /dev/termination-log
-          volumeMounts:
-          - mountPath: /tmp
-            name: tmpdir   
+          - containerPort: 9000
+            protocol: TCP
           env:
           - name: DOMAIN_PROD
-            value: ${APPLICATION_DOMAIN}   
+            value: "${APPLICATION_DOMAIN}"   
           - name: DOMAIN_DEV
             value: ${DOMAIN_DEV}
           - name: NGINX_CACHE
             value: ${CACHE}                                            
-        - env:
           - name: PHPINI_OPCACHE_ENABLE
             value: ${CACHE}
           - name: PHPINI_APC_ENABLE
             value: ${CACHE} 
           - name: DEBUG_ENABLE
             value: ${DEBUG}                        
-          - name: APPLICATION_NAME
-            value: ${APPLICATION_NAME}
           - name: DATABASE_NAME
             value: ${DATABASE_NAME}
           - name: DATABASE_USER
             valueFrom:
               secretKeyRef:
                 key: database-user
-                name: ${APPLICATION_NAME}
+                name: ${NAME}
           - name: DATABASE_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-password
-                name: ${APPLICATION_NAME}
-          image: ${APPLICATION_NAME}
-          name: ${APPLICATION_NAME}
-          ports:
-          - containerPort: 9000
+                name: ${NAME}
+          image: ' '
+          name: php
           readinessProbe:
-            tcpSocket:
-              port: 9000
+            httpGet:
+              path: /
+              port: 8080
+              host: "${APPLICATION_DOMAIN}"
             initialDelaySeconds: 5
-            periodSeconds: 10          
+            periodSeconds: 10     
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+              host: "${APPLICATION_DOMAIN}"              
+            initialDelaySeconds: 5
+            periodSeconds: 10                   
           resources:
             limits:
               memory: ${MEMORY_LIMIT}          
           volumeMounts:
-          - mountPath: /var/lib/mysql/data
-            name: mariadb-data
           - mountPath: /tmp
             name: tmpdir             
         volumes:
         - emptyDir:
             medium: ""
-          name: mariadb-data
-        - emptyDir:
-            medium: ""
           name: tmpdir          
-    triggers:
+    triggers: 
     - imageChangeParams:
         automatic: true
         containerNames:
-        - ${APPLICATION_NAME}-nginx
+        - php
         from:
           kind: ImageStreamTag
-          name: ${APPLICATION_NAME}-nginx:latest
-      type: ImageChange    
-    - imageChangeParams:
-        automatic: true
-        containerNames:
-        - ${APPLICATION_NAME}
-        from:
-          kind: ImageStreamTag
-          name: ${APPLICATION_NAME}:latest
+          name: ${NAME}:latest
       type: ImageChange
     - type: ConfigChange
 - apiVersion: v1
@@ -263,14 +207,14 @@ objects:
   metadata:
     annotations:
       description: Exposes the database server
-    name: ${APPLICATION_NAME}-mysql
+    name: ${NAME}-mysql
   spec:
     ports:
     - name: mysql
       port: 3306
       targetPort: 3306
     selector:
-      name: ${APPLICATION_NAME}-mysql
+      name: ${NAME}-mysql
 - apiVersion: v1
   kind: DeploymentConfig
   metadata:
@@ -297,17 +241,17 @@ objects:
             valueFrom:
               secretKeyRef:
                 key: database-user
-                name: mariadb
+                name: ${NAME}
           - name: MYSQL_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-password
-                name: mariadb
+                name: ${NAME}
           - name: MYSQL_ROOT_PASSWORD
             valueFrom:
               secretKeyRef:
                 key: database-root-password
-                name: mariadb                
+                name: ${NAME}                
           - name: MYSQL_DATABASE
             value: ${DATABASE_NAME}
           image: ' '
@@ -353,7 +297,7 @@ objects:
     - type: ConfigChange
 parameters:
 - description: Application name
-  name: APPLICATION_NAME
+  name: NAME
   value: php-mysql-example
 - description: The URL of the repository with your application source code
   name: SOURCE_REPOSITORY_URL

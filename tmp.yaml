@@ -1,288 +1,68 @@
-    
-- apiVersion: v1
-  kind: ImageStream
-  metadata:
-    annotations:
-      description: Keeps track of changes in the application image
-    name: ${APPLICATION_NAME}
-- apiVersion: v1
-  kind: BuildConfig
-  metadata:
-    annotations:
-      description: Defines how to build the application
-      template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${APPLICATION_NAME}
-  spec:
-    output:
-      to:
-        kind: ImageStreamTag
-        name: ${APPLICATION_NAME}:latest
-    source:
-      contextDir: ${CONTEXT_DIR}
-      git:
-        ref: ${SOURCE_REPOSITORY_REF}
-        uri: ${SOURCE_REPOSITORY_URL}
-      type: Git
-    strategy:
-      sourceStrategy:
-        from:
-          kind: ImageStreamTag
-          name: php:5
-          namespace: openshift
+apiVersion: v1
+kind: ImageStream
+metadata:
+  annotations:
+    openshift.io/display-name: Httpd
+    openshift.io/image.dockerRepositoryCheck: 2017-09-28T17:57:43Z
+  creationTimestamp: 2017-09-28T17:57:40Z
+  generation: 2
+  name: httpd
+  namespace: openshift
+  resourceVersion: "1028"
+  selfLink: /oapi/v1/namespaces/openshift/imagestreams/httpd
+  uid: 8519813c-a476-11e7-b980-6e8cda8356bf
+spec:
+  lookupPolicy:
+    local: false
+  tags:
+  - annotations:
+      description: Build and serve static content via Httpd on CentOS 7. For more
+        information about using this builder image, including OpenShift considerations,
+        see https://github.com/sclorg/httpd-container/blob/master/2.4/README.md.
+      iconClass: icon-apache
+      openshift.io/display-name: Httpd 2.4
+      sampleRepo: https://github.com/openshift/httpd-ex.git
+      supports: httpd
+      tags: builder,httpd
+      version: "2.4"
+    from:
+      kind: DockerImage
+      name: centos/httpd-24-centos7:latest
+    generation: 2
+    importPolicy: {}
+    name: "2.4"
+    referencePolicy:
       type: Source
-    triggers:
-    - type: ImageChange
-    - type: ConfigChange
-    - github:
-        secret: ${GITHUB_WEBHOOK_SECRET}
-      type: GitHub
-- apiVersion: v1
-  kind: DeploymentConfig
-  metadata:
-    annotations:
-      description: Defines how to deploy the application server
-      template.alpha.openshift.io/wait-for-ready: "true"
-    name: ${APPLICATION_NAME}
-  spec:
-    replicas: 1
-    selector:
-      name: ${APPLICATION_NAME}
-    strategy:
-      type: Rolling
-    template:
-      metadata:
-        labels:
-          name: ${APPLICATION_NAME}
-        name: ${APPLICATION_NAME}
-      spec:
-        containers:
-        - image: oondeo/openresty:jessie
-          imagePullPolicy: IfNotPresent
-          name: nginx
-          ports:
-          - containerPort: 8080
-            protocol: TCP
-          - containerPort: 8081
-            protocol: TCP     
-          readinessProbe:
-            httpGet:
-              path: /health.php
-              port: 8080
-            initialDelaySeconds: 3
-            timeoutSeconds: 3                 
-          terminationMessagePath: /dev/termination-log
-          volumeMounts:
-          - mountPath: /tmp
-            name: tmpdir   
-          env:
-          - name: DOMAIN_PROD
-            value: ${APPLICATION_DOMAIN}   
-          - name: DOMAIN_DEV
-            value: ${DOMAIN_DEV}
-          - name: NGINX_CACHE
-            value: ${CACHE}                                
-        - env:
-          - name: PHPINI_OPCACHE_ENABLE
-            value: ${CACHE}
-          - name: PHPINI_APC_ENABLE
-            value: ${CACHE} 
-          - name: DEBUG_ENABLE
-            value: ${DEBUG}                        
-          - name: APPLICATION_NAME
-            value: ${APPLICATION_NAME}
-          - name: DATABASE_NAME
-            value: ${DATABASE_NAME}
-          - name: DATABASE_USER
-            valueFrom:
-              secretKeyRef:
-                key: database-user
-                name: ${APPLICATION_NAME}
-          - name: DATABASE_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: database-password
-                name: ${APPLICATION_NAME}
-          image: ${APPLICATION_NAME}
-          name: ${APPLICATION_NAME}
-          ports:
-          - containerPort: 9000
-          readinessProbe:
-            tcpSocket:
-              port: 9000
-            initialDelaySeconds: 5
-            periodSeconds: 10          
-          resources:
-            limits:
-              memory: ${MEMORY_LIMIT}          
-          volumeMounts:
-          - mountPath: /var/lib/mysql/data
-            name: mariadb-data
-          - mountPath: /tmp
-            name: tmpdir             
-        volumes:
-        - emptyDir:
-            medium: ""
-          name: mariadb-data
-        - emptyDir:
-            medium: ""
-          name: tmpdir          
-    triggers:
-    - imageChangeParams:
-        automatic: true
-        containerNames:
-        - ${APPLICATION_NAME}
-        from:
-          kind: ImageStreamTag
-          name: ${APPLICATION_NAME}:latest
-      type: ImageChange
-    - type: ConfigChange
-- apiVersion: v1
-  kind: Service
-  metadata:
-    annotations:
-      description: Exposes the database server
-    name: ${APPLICATION_NAME}-mysql
-  spec:
-    ports:
-    - name: mysql
-      port: 3306
-      targetPort: 3306
-    selector:
-      name: ${APPLICATION_NAME}-mysql
-- apiVersion: v1
-  kind: DeploymentConfig
-  metadata:
-    annotations:
-      description: Defines how to deploy the database
-    name: mariadb
-    labels:
-      app: mariadb
-  spec:
-    replicas: 1
-    selector:
-      name: mariadb
-    strategy:
-      type: Recreate
-    template:
-      metadata:
-        labels:
-          name: mariadb
-        name: mariadb
-      spec:
-        containers:
-        - env:
-          - name: MYSQL_USER
-            valueFrom:
-              secretKeyRef:
-                key: database-user
-                name: mariadb
-          - name: MYSQL_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: database-password
-                name: mariadb
-          - name: MYSQL_ROOT_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                key: database-root-password
-                name: mariadb                
-          - name: MYSQL_DATABASE
-            value: ${DATABASE_NAME}
-          image: ' '
-          livenessProbe:
-            failureThreshold: 3
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            successThreshold: 1
-            tcpSocket:
-              port: 3306
-            timeoutSeconds: 1
-          name: mariadb
-          ports:
-          - containerPort: 3306
-            protocol: TCP
-          readinessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - '-i'
-                - '-c'
-                - >-
-                  MYSQL_PWD="$MYSQL_PASSWORD" mysql -h 127.0.0.1 -u $MYSQL_USER
-                  -D $MYSQL_DATABASE -e 'SELECT 1'
-            failureThreshold: 3
-            initialDelaySeconds: 5
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 1
-          resources:
-            limits:
-              memory: ${MEMORY_MYSQL_LIMIT}
-    triggers:
-    - imageChangeParams:
-        automatic: true
-        containerNames:
-        - mariadb
-        from:
-          kind: ImageStreamTag
-          name: 'mariadb:latest'
-          namespace: openshift
-      type: ImageChange
-    - type: ConfigChange
-parameters:
-- description: Application name
-  name: APPLICATION_NAME
-  value: php-mysql-example
-- description: The URL of the repository with your application source code
-  name: SOURCE_REPOSITORY_URL
-  value: https://github.com/wordpress/wordpress.git
-- description: Set this to a branch name, tag or other ref of your repository if you
-    are not using the default branch
-  name: SOURCE_REPOSITORY_REF
-- description: Set this to the relative path to your project if it is not in the root
-    of your repository
-  name: CONTEXT_DIR
-- description: The exposed hostname that will route to the php service, if left
-    blank a value will be defaulted.
-  name: APPLICATION_DOMAIN
-- description: Maximum amount of memory the PHP container can use.
-  displayName: Memory Limit
-  name: MEMORY_LIMIT
-  required: true
-  value: 512Mi  
-- description: Github trigger secret.  A difficult to guess string encoded as part
-    of the webhook URL.  Not encrypted.
-  from: '[a-zA-Z0-9]{40}'
-  generate: expression
-  name: GITHUB_WEBHOOK_SECRET
-- description: Database name
-  name: DATABASE_NAME
-  value: phpexample
-- description: Database user name
-  name: DATABASE_USER
-  value: phpexample
-- description: Database user password
-  from: '[a-zA-Z0-9]{16}'
-  generate: expression
-  name: DATABASE_PASSWORD
-- description: Database root password
-  from: '[a-zA-Z0-9]{16}'
-  generate: expression
-  name: DATABASE_ROOT_PASSWORD  
-- description: Maximum amount of memory the MySQL container can use.
-  displayName: Memory Limit (MySQL)
-  name: MEMORY_MYSQL_LIMIT
-  required: true
-  value: 512Mi
-- description: Activate cache
-  name: CACHE
-  required: true
-  value: "false"
-- description: Activate debug
-  name: DEBUG
-  required: true
-  value: "true"  
-- description: developer internet domain internet domain, you must create a route for it
-  name: DOMAIN_DEV
-  required: true
-  value: example.127.0.0.1.nip.io
+  - annotations:
+      description: |-
+        Build and serve static content via Httpd on CentOS 7. For more information about using this builder image, including OpenShift considerations, see https://github.com/sclorg/httpd-container/blob/master/2.4/README.md.
+
+        WARNING: By selecting this tag, your application will automatically update to use the latest version of Httpd available on OpenShift, including major versions updates.
+      iconClass: icon-apache
+      openshift.io/display-name: Httpd (Latest)
+      sampleRepo: https://github.com/openshift/httpd-ex.git
+      supports: httpd
+      tags: builder,httpd
+    from:
+      kind: ImageStreamTag
+      name: "2.4"
+    generation: 1
+    importPolicy: {}
+    name: latest
+    referencePolicy:
+      type: Source
+status:
+  dockerImageRepository: 172.30.1.1:5000/openshift/httpd
+  tags:
+  - items:
+    - created: 2017-09-28T17:57:43Z
+      dockerImageReference: centos/httpd-24-centos7@sha256:d4e8e1b1e5af8d6b9cc3971cadfb84a0d7e4619c64ff8be05adf616008fffbe5
+      generation: 2
+      image: sha256:d4e8e1b1e5af8d6b9cc3971cadfb84a0d7e4619c64ff8be05adf616008fffbe5
+    tag: latest
+  - items:
+    - created: 2017-09-28T17:57:43Z
+      dockerImageReference: centos/httpd-24-centos7@sha256:d4e8e1b1e5af8d6b9cc3971cadfb84a0d7e4619c64ff8be05adf616008fffbe5
+      generation: 2
+      image: sha256:d4e8e1b1e5af8d6b9cc3971cadfb84a0d7e4619c64ff8be05adf616008fffbe5
+    tag: "2.4"
