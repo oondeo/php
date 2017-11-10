@@ -13,7 +13,7 @@ LABEL summary="$SUMMARY" \
       com.redhat.component="php" \
       name="oondeo/php" \
       version="5" \
-      release="1" \
+      release="6" \
       maintainer="OONDEO <info@oondeo.es>"
 
 ENV \
