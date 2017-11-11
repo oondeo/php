@@ -63,7 +63,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libbz2-dev libz
         && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
 
 #included in php: mysqlnd curl 
-ENV PHP_EXTENSIONS="soap iconv intl bz2 gmp mysql mysqli mcrypt xsl zip gd pdo pdo_mysql pdo_sqlite json dom hash bcmath gettext mbstring phar simplexml"
+ENV PHP_EXTENSIONS="soap iconv intl bz2 gmp mysqli mcrypt xsl zip gd pdo pdo_mysql pdo_sqlite json dom hash bcmath gettext mbstring phar simplexml"
 RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
     && ln -s /usr/include/x86_64-linux-gnu/gmp.h /usr/include/gmp.h \
     && docker-php-ext-install -j$(nproc)  ${PHP_EXTENSIONS} \
