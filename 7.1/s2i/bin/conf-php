@@ -3,6 +3,7 @@
 phpini_path=${1:-/opt/app-root/etc/php.ini}
 XDEBUG=${XDEBUG:-false}
 SESSION__SAVE_PATH="${SESSION__SAVE_PATH:-/tmp/sessions}"
+mkdir -p /tmp/sessions
 if [ "$XDEBUG" == "0" ] || [ "$XDEBUG" == "false" ] || [ "$XDEBUG" == "FALSE" ]
 then
     sed -i "/xdebug/d" $phpini_path

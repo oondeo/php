@@ -13,7 +13,7 @@ LABEL summary="$SUMMARY" \
       com.redhat.component="php" \
       name="oondeo/php" \
       version="7" \
-      release="2" \
+      release="1" \
       maintainer="OONDEO <info@oondeo.es>"
 
 ENV \
@@ -61,7 +61,7 @@ RUN docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-di
     && docker-php-ext-install -j$(nproc)  ${PHP_EXTENSIONS} \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/etc/php/conf.d/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
 
-ENV PHPREDIS_VERSION=3.1.4 APCU_VERSION=5.1.5 XDEBUG_VERSION=2.5.5
+ENV PHPREDIS_VERSION=3.1.4 APCU_VERSION=5.1.8 XDEBUG_VERSION=2.5.5
 
 RUN pecl install apcu-$APCU_VERSION xdebug-$XDEBUG_VERSION redis-${PHPREDIS_VERSION} \
     && pear install DB MDB2 Mail Mail_Mime Mail_mimeDecode Log  HTTP_Request2 XML_RPC2 Date \
@@ -85,7 +85,7 @@ ENV PHP_INI_PATH="/opt/app-root/etc/php.ini" \
 
 RUN mkdir -p $PHP_FPMD_PATH $PHP_LIB_PATH
 ENV OPTS=" --fpm-config=$PHP_FPM_PATH -c $PHP_INI_PATH " \
-    OPCACHE__ENABLED=0 APC__ENABLED=0 XDEBUG=1
+    OPCACHE__ENABLED=0 APC__ENABLED=0 XDEBUG=1 DATE__TIMEZONE=Europe/Madrid
 
 ADD php.ini $PHP_INI_PATH
 ADD php-cli.ini $PHP_CLI_INI_PATH
