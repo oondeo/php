@@ -1,28 +1,28 @@
 #!/bin/bash
 
-PHP_INI_PATH=${PHP_INI_PATH:-/opt/app-root/etc/php.ini}
+phpini_path=${1:-/opt/app-root/etc/php.ini}
 XDEBUG=${XDEBUG:-false}
-SESSION_SAVE_PATH="/tmp/sessions"
+SESSION__SAVE_PATH="${SESSION__SAVE_PATH:-/tmp/sessions}"
 if [ "$XDEBUG" == "0" ] || [ "$XDEBUG" == "false" ] || [ "$XDEBUG" == "FALSE" ]
 then
-    sed -i "/xdebug/d" $PHP_INI_PATH
+    sed -i "/xdebug/d" $phpini_path
 fi
 while IFS='=' read -r name value ; do
   if [[ $name == 'PHPINI_'* ]]; then
     name="${name/PHPINI_/}"
     name="${name,,}"
     name="${name/__/\.}"
-    sed -i "/$name[ =].*/d" $PHP_INI_PATH
+    sed -i "/$name[ =].*/d" $phpini_path
     if [ "$value" != "" ]
     then
-      #echo "$name = ${value//\//\\/} " >> $PHP_INI_PATH
-      echo "$name = ${value} " >> $PHP_INI_PATH
+      #echo "$name = ${value//\//\\/} " >> $phpini_path
+      echo "$name = ${value} " >> $phpini_path
       if [ "$name" == "session.save_path" ]
       then
-        SESSION_SAVE_PATH="$value"
+        SESSION__SAVE_PATH="$value"
       fi
     fi
   fi
 done < <(env)
 
-mkdir -p $SESSION_SAVE_PATH
+mkdir -p $SESSION__SAVE_PATH

@@ -43,14 +43,13 @@ COPY ./root/root/ /
 
 RUN /usr/bin/docker-header
 
+ENTRYPOINT ["/sbin/tini", "-g" ,"--", "container-entrypoint"]
+
 # Directory with the sources is set as the working directory so all STI scripts
 # can execute relative to this path.
 WORKDIR ${HOME}
 
-ENTRYPOINT ["/sbin/tini", "-g" ,"--", "container-entrypoint"]
-
-
-RUN apt-get update && apt-get install -y --no-install-recommends libbz2-dev libzip-dev \
+RUN apt-get update && apt-get install -y --no-install-recommends git libbz2-dev libzip-dev \
         libmcrypt-dev libicu-dev libfreetype6-dev libpcre3-dev libxml2-dev libxslt1.1 libxslt1-dev \
         libjpeg62-turbo-dev libpng12-dev libsqlite3-dev libssl-dev libcurl4-openssl-dev libgmp-dev \
         && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
@@ -78,19 +77,18 @@ RUN cd /tmp && \
     mv phpunit.phar /usr/local/bin/phpunit && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends git zip unzip rsync \
-       && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
-
-
 ENV PHP_INI_PATH="/opt/app-root/etc/php.ini" \
+    PHP_CLI_INI_PATH="/opt/app-root/etc/php-cli.ini" \
     PHP_FPM_PATH="/opt/app-root/etc/php-fpm.conf" \
     PHP_FPMD_PATH="/opt/app-root/etc/php-fpm.d" \
     PHP_LIB_PATH="/opt/app-root/lib/php" 
 
 RUN mkdir -p $PHP_FPMD_PATH $PHP_LIB_PATH
-ENV OPTS=" --fpm-config=$PHP_FPM_PATH -c $PHP_INI_PATH "
+ENV OPTS=" --fpm-config=$PHP_FPM_PATH -c $PHP_INI_PATH " \
+    OPCACHE__ENABLED=0 APC__ENABLED=0 XDEBUG=1
 
 ADD php.ini $PHP_INI_PATH
+ADD php-cli.ini $PHP_CLI_INI_PATH
 ADD php-fpm.d $PHP_FPMD_PATH
 
 # ADD docker.conf /opt/app-root/etc/php-fpm.d/docker.conf
