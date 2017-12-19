@@ -41,7 +41,14 @@ ENV BASH_ENV=/opt/app-root/etc/scl_enable \
 # Copy extra files to the image.
 COPY ./root/root/ /
 
-RUN /usr/bin/docker-header
+#Install tiny on debian 
+ENV TINI_VERSION=v0.16.1
+RUN cp /bin/sh /sh && apt-get update && apt-get install -y --no-install-recommends curl dash locales \
+    && curl -o /sbin/tini -SLk https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini \
+    && echo "en_US.UTF-8 UTF-8" > /etc/locale.gen \
+    && echo $LANG UTF-8 >> /etc/locale.gen \
+    && locale-gen \     
+    && chmod +x /sbin/tini && rm -rf /var/lib/apt/* /var/tmp/* /tmp/* /var/log/* 
 
 # Directory with the sources is set as the working directory so all STI scripts
 # can execute relative to this path.
@@ -109,6 +116,10 @@ CMD [ "$STI_SCRIPTS_PATH/run" ]
 
 ADD s2i/bin $STI_SCRIPTS_PATH
 
-RUN /usr/bin/docker-footer
-
+# Reset permissions of modified directories and add default user
+RUN useradd -u 1001 -r -g 0 -d ${HOME} -s /sbin/nologin \
+      -c "Default Application User" default \
+    && chown -R 1001:0 /opt/app-root \
+    && mkdir -p ${HOME}/.pki/nssdb \
+    && chown -R 1001:0 ${HOME}/.pki 
 USER 1001    

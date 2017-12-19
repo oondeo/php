@@ -1,4 +1,4 @@
-FROM php:5-fpm
+FROM php:5.6-fpm-jessie
 
 ENV SUMMARY="PHP 5 image with standar modules"	\
     DESCRIPTION="The image use scripts and configurations compatible \
@@ -89,7 +89,7 @@ RUN cd /tmp && \
     mv phpunit.phar /usr/local/bin/phpunit && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends git zip unzip \
+RUN apt-get update && apt-get install -y --no-install-recommends git zip unzip rsync \
        && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /usr/share/doc/* /usr/share/man/* /root/.cache
 
 
