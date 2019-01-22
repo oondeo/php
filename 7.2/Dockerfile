@@ -81,12 +81,13 @@ COPY --from=node /opt/bitnami/* /opt/bitnami/
 #     /opt/bitnami/php/lib/php/extensions/xdebug.so \
 #     /opt/bitnami/php/lib/php/extensions/
 
-ENV PATH="/usr/libexec/s2i/bin:/opt/bitnami/node/bin:/opt/bitnami/python/bin:$PATH" \
+ENV PATH="/usr/libexec/s2i/bin:/opt/bitnami/node/bin:/opt/bitnami/php/bin:$PATH" \
     STI_SCRIPTS_PATH=/usr/libexec/s2i
 
 ADD s2i/bin $STI_SCRIPTS_PATH
 
-RUN cd /opt/bitnami/php/bin && curl -s https://getcomposer.org/installer | php
+RUN cd /opt/bitnami/php/bin && curl -s https://getcomposer.org/installer | php \
+    && curl -sL -o phpunit https://phar.phpunit.de/phpunit-7.phar && chmod +x phpunit
 
 ENTRYPOINT [ "/usr/libexec/s2i/bin/run" ]
 

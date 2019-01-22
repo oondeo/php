@@ -6,7 +6,25 @@ shopt -s dotglob
 echo "---> Installing application source..."
 mv /tmp/src/* ./
 
-exec assemble-node
+STI_SCRIPTS_PATH=${STI_SCRIPTS_PATH:-/usr/libexec/s2i/bin}
+
+if [[ ! -z $SOURCE_REPOSITORY_URL ]] && [ -z "$(ls -A .)" ]; then
+  if [ "$SOURCE_REPOSITORY_REF" == "_file"]; then
+      wget 
+  else
+    if [[ -z $SOURCE_REPOSITORY_REF ]]; then
+      $REF=""
+    else
+      $REF="-b $SOURCE_REPOSITORY_REF"
+    fi
+    git clone --depth 1 $REF --single-branch $SOURCE_REPOSITORY_URL
+    if [ "$?" != "0" ];then 
+      git clone $SOURCE_REPOSITORY_URL
+      git checkout $SOURCE_REPOSITORY_REF
+      rm -rf .git*
+    fi 
+  if
+fi
 
 if [ -f composer.json ]; then
   echo "Found 'composer.json', installing dependencies using composer.phar... "
@@ -30,7 +48,7 @@ if [ -f composer.json ]; then
 fi
 
 if [ -f package.json ]; then
-  exec /usr/libexec/s2i/bin/assemble-npm
+  exec ${STI_SCRIPTS_PATH}/assemble-node
 fi
 
 if [ -d "public" ]; then
@@ -41,9 +59,9 @@ else
 fi
 
 if [ ! -f webroot/health.php ]; then
-  cp /usr/libexec/s2i/bin/health.php webroot/health.php
+  cp ${STI_SCRIPTS_PATH}/health.php webroot/health.php
 fi
 
 if [ ! -f migrate-database.sh ]; then
-  cp /usr/libexec/s2i/bin/migrate-database.sh migrate-database.sh
+  cp ${STI_SCRIPTS_PATH}/migrate-database.sh migrate-database.sh
 fi

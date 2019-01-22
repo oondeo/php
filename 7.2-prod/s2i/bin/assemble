@@ -27,5 +27,3 @@ if [ -f composer.json ]; then
   fi
 fi
 
-# Fix source directory permissions
-fix-permissions ./

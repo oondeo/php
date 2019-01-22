@@ -79,7 +79,7 @@ COPY --from=builder \
     /opt/bitnami/php/lib/php/extensions/xdebug.so \
     /opt/bitnami/php/lib/php/extensions/
 
-ENV PATH="/usr/libexec/s2i/bin:/opt/bitnami/node/bin:/opt/bitnami/python/bin:$PATH" \
+ENV PATH="/usr/libexec/s2i/bin:/opt/bitnami/node/bin:/opt/bitnami/php/bin:$PATH" \
     STI_SCRIPTS_PATH=/usr/libexec/s2i
 
 ADD s2i/bin $STI_SCRIPTS_PATH
