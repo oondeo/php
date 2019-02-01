@@ -52,7 +52,6 @@ RUN apk add --no-cache tini dash bash && ln -s /usr/bin/dash /bin/dash
 # can execute relative to this path.
 WORKDIR ${HOME}
 
-ARG PHP_EXTENSIONS
 # runDeps="$( \
 # 		scanelf --needed --nobanner --format '%n#p' --recursive /usr/local \
 # 			| tr ',' '\n' \
@@ -63,19 +62,13 @@ RUN apk add --no-cache libsodium && apk add --no-cache --virtual .builddeps unzi
         libmcrypt-dev icu-dev freetype-dev pcre-dev libxml2-dev libxslt-dev openldap-dev recode-dev tidyhtml-dev \
         libjpeg-turbo-dev libpng-dev sqlite-dev curl gettext-dev unixodbc-dev aspell-dev  readline-dev libedit-dev \
     && ln -s /usr/src/php/ext/ /usr/local/include/php/ext/ext \
-    && docker-php-ext-install -j "$(nproc)" ${PHP_EXTENSIONS} \
     && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
     && docker-php-ext-install -j "$(nproc)" gd \
+    && docker-php-ext-install -j "$(nproc)" ${PHP_EXTENSIONS} \    
     && docker-php-source delete \
     && /usr/bin/install-deps \
     && apk del .builddeps \
     && rm -rf /tmp/* /var/tmp/* /usr/local/etc/php/conf.d/*
-
-
-ARG PHPREDIS_VERSION
-ARG APCU_VERSION
-ARG XDEBUG_VERSION
-ARG MEMCACHED_VERSION
 
 #    && mkdir -p  /usr/src/php/ext && cd /usr/src/php/ext \
 #    && curl -sL https://github.com/phpredis/phpredis/archive/$PHPREDIS_VERSION.zip -o phpredis.zip \

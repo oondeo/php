@@ -57,13 +57,12 @@ spec:
       name: oondeo/php:7.2
     generation: 9
     importPolicy: {}
-    name: "7.0"
+    name: "7.2"
     referencePolicy:
       type: Source      
   - annotations:
       description: |-
         Build and run PHP applications on CentOS 7. For more information about using this builder image, including OpenShift considerations, see https://github.com/sclorg/s2i-php-container/blob/master/5.6/README.md.
-
         WARNING: By selecting this tag, your application will automatically update to use the latest version of PHP available on OpenShift, including major versions updates.
       iconClass: icon-php
       openshift.io/display-name: PHP (Latest)
@@ -72,7 +71,7 @@ spec:
       tags: builder,php
     from:
       kind: ImageStreamTag
-      name: "7.2"
+      name: "latest"
     generation: 1
     importPolicy: {}
     name: latest
