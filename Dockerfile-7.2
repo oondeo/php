@@ -93,8 +93,15 @@ RUN cd /tmp && \
 #install nodejs
 RUN apk add --no-cache nodejs npm yarn openssh-client sshfs git curl
 
+#locale support 
+RUN cd /tmp && wget https://raw.githubusercontent.com/oondeo/docker-alpine/master/musl-locales-0.2-r0.apk \
+    && apk add --allow-untrusted musl-locales-0.2-r0.apk && rm -f musl-locales-0.2-r0.apk
+
 ENV PATH="/usr/libexec/s2i/bin:$PATH" \
-    STI_SCRIPTS_PATH=/usr/libexec/s2i/bin
+    STI_SCRIPTS_PATH=/usr/libexec/s2i/bin \
+    XDG_DATA_HOME=$HOME/.local/share \
+    MUSL_LOCPATH="/usr/share/i18n/locales/musl" \
+    LANG=es_ES.UTF-8 LANGUAGE=es_ES.UTF-8 LC_ALL=es_ES.UTF-8 LC_CTYPE=es_ES.UTF-8 
 
 COPY s2i/bin $STI_SCRIPTS_PATH
 COPY etc /opt/app-root/etc/

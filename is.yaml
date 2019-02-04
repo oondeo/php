@@ -20,7 +20,7 @@ spec:
       version: "5"
     from:
       kind: DockerImage
-      name: oondeo/php-5-nginx:latest
+      name: docker.io/oondeo/php-5-nginx:latest
     generation: 13
     importPolicy: {}
     name: "5"
@@ -54,7 +54,7 @@ spec:
       version: "7.2"
     from:
       kind: DockerImage
-      name: oondeo/php:7.2
+      name: docker.io/oondeo/php:7.2
     generation: 9
     importPolicy: {}
     name: "7.2"

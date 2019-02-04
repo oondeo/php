@@ -667,7 +667,7 @@ objects:
         - env:
           - name: DOMAIN_PROD
             value: "${APPLICATION_DOMAIN}"
-          image: "quay.io/oondeo/openresty"  
+          image: "docker.io/oondeo/nginx"  
           name: "nginx"      
           livenessProbe:
             httpGet:
