@@ -27,4 +27,4 @@ fi
 echo "Apply environment variables attributes"
 conf-php $PHP_INI_PATH
 echo "Starting server"
-php-fpm -c /opt/app-root/etc/php-fpm.conf
+php-fpm -F -g /run/php-fpm.pid -y /opt/app-root/etc/php-fpm.conf -c /opt/app/root/etc/php/php.ini $*
