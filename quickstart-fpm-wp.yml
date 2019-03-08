@@ -28,73 +28,31 @@ objects:
 - apiVersion: v1
   data:
     www.conf: |
-                {
-                    "listeners": {
-                        "127.0.0.1:8090": {
-                            "application": "script_index_php"
-                        },
-                        "127.0.0.1:8091": {
-                            "application": "direct_php"
-                        }
-                    },
+      ; Start a new pool named 'www'.
+      ; the variable $pool can be used in any directive and will be replaced by the
+      ; pool name ('www' here)
+      [www]
+      listen = /var/run/www.sock
 
-                    "applications": {
-                        "script_index_php": {
-                            "type": "php",
-                            "processes": {
-                                "max": 20,
-                                "spare": 5
-                            },
-                            "root": "/opt/app-root/src",
-                            "script": "index.php",
-                            "options": {
-                                "file": "/opt/app-root/etc/php.ini",
-                                "admin": {
-                                    "memory_limit": "256M",
-                                    "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/tmp:/run/php",
-                                    "session.save_path" : "30;660;/run/php/session",
-                                    "variables_order": "EGPCS",
-                                    "expose_php": "0"
-                                },
-                                "user": {
-                                    "display_errors": "0",
-                                    "upload_max_filesize" : "32M",
-                                    "post_max_size" : "32M",
-                                    "max_execution_time" : "60",
-                                    "max_input_time" : "60",
-                                    "opcache.enable" : "1"     
-                                }
-                            }                            
-                        },
-                        "direct_php": {
-                            "type": "php",
-                            "processes": {
-                                "max": 5,
-                                "spare": 0
-                            },
-                            "root": "/opt/app-root/src",
-                            "index": "index.php",
-                            "options": {
-                                "file": "/opt/app-root/etc/php.ini",
-                                "admin": {
-                                    "memory_limit": "256M",
-                                    "open_basedir": "/opt/app-root/src:/usr/local/lib:/tmp:/run/php",
-                                    "session.save_path" : "30;660;/run/php/session",
-                                    "variables_order": "EGPCS",
-                                    "expose_php": "0"
-                                },
-                                "user": {
-                                    "display_errors": "0",
-                                    "upload_max_filesize" : "32M",
-                                    "post_max_size" : "32M",
-                                    "max_execution_time" : "60",
-                                    "max_input_time" : "60",
-                                    "opcache.enable" : "1"                                    
-                                }
-                            }                              
-                        }
-                    }
-                }
+      listen.mode = 0660
+      ;access.log = /proc/self/fd/2
+      ;access.format = "%R - %u %t \"%m %r%Q%q\" %s %f %{mili}d %{kilo}M %C%%"
+
+      pm = dynamic
+      pm.max_children = 5
+      pm.start_servers = 2
+      pm.min_spare_servers = 1
+      pm.max_spare_servers = 3
+      ;pm.process_idle_timeout = 10s;
+      ;pm.max_requests = 500
+      php_admin_value[open_basedir] = "/tmp:/opt/app-root/src:/usr/local/lib/php"
+      php_admin_value[session.save_path] = "/tmp"
+      php_admin_value[soap.wsdl_cache_dir] = "/tmp"
+      php_admin_value[sys_temp_dir] = "/tmp"
+      php_admin_value[upload_tmp_dir] = "/var/tmp"
+      env[TMP] = /tmp
+      env[TMPDIR] = /tmp
+      env[TEMP] = /tmp
   kind: ConfigMap
   metadata:
     name: "${NAME}-php"
@@ -127,9 +85,8 @@ objects:
                         listen 8080 default_server;
                         server_name _;
 
-                        #access_log off;
+                        access_log off;
 
-                        include error_page_params;
                         include server_cache_params;
 
                         # this prevents hidden files (beginning with a period) from being served
@@ -174,8 +131,8 @@ objects:
 
                                 fastcgi_pass_header 'Accept-Encoding ""';
 
-                                fastcgi_pass 127.0.0.1:8090;
-                                # fastcgi_pass  unix:/var/run/www.sock;
+                                #fastcgi_pass 127.0.0.1:9000;
+                                fastcgi_pass  unix:/var/run/www.sock;
                                 fastcgi_index index.php;
                                 fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                                 fastcgi_param SCRIPT_NAME $fastcgi_script_name;
@@ -300,12 +257,7 @@ objects:
           - name: OPCACHE_REVALIDATE_FREQ
             value: "${OPCACHE_REVALIDATE_FREQ}"
           image: "php"
-          name: php
-          lifecycle:
-            postStart:
-              exec:
-                command: ["/bin/bash", "-c", "conf-php"]    
-                containerName: php      
+          name: php         
           volumeMounts:
           - mountPath: "/tmp"
             name: "tmp"           
@@ -355,6 +307,7 @@ objects:
         - name: "tmp"
           emptyDir:
             medium: Memory
+            sizeLimit: "2Gi"
         - name: "php-config"
           configMap:
             name: "${NAME}-php"
@@ -475,7 +428,8 @@ objects:
             claimName: "${DATABASE_SERVICE_NAME}"
         - name: "tmp"
           emptyDir:
-            medium: Memory           
+            medium: Memory
+            sizeLimit: "1Gi"            
     triggers:
     - imageChangeParams:
         automatic: true

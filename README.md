@@ -16,3 +16,6 @@ env[TMP] = /tmp
 env[TMPDIR] = /tmp
 env[TEMP] = /tmp
 ```
+
+
+# openshift
