@@ -28,6 +28,14 @@ done < <(env)
 
 mkdir -p $SESSION__SAVE_PATH
 
+
 if [ -f "/usr/sbin/unitd" ]; then
+    for root in $(grep "\"root\":" /opt/app-root/etc/unit/www.conf | cut -d":" -f2 | cut -d'"' -f2) 
+    do
+      if [ ! -f "$root/index.php" ]; then
+          mkdir -p "$root"
+          cp /usr/local/lib/p.php "$root/index.php"
+      fi
+    done
     curl -X PUT --data-binary @/opt/app-root/etc/unit/www.conf --unix-socket /run/control.unit.sock http://localhost/config
 fi
