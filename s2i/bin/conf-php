@@ -38,7 +38,7 @@ if [ -f "/usr/sbin/unitd" ]; then
       do
         if [ ! -f "$root/index.php" ]; then
             mkdir -p "$root"
-            cp /usr/local/lib/p.php "$root/index.php"
+            cp /usr/local/lib/php/p.php "$root/index.php" || true
         fi
       done
       if [ -f $UNIT_CONTROL_SOCKET ]; then

@@ -7,8 +7,8 @@ UNIT_CONFIG_DIR=${3:-/opt/app-root/etc/unit}
 
 while true
 do
-    inotifywait -m -r $UNIT_CONFIG_DIR
+    sleep 10
     conf-php $PHP_INI_PATH $UNIT_CONTROL_SOCKET $UNIT_CONFIG_DIR
-    sleep 4
+    inotifywait -m -r $UNIT_CONFIG_DIR
     #curl -X PUT --data-binary @$1--unix-socket $2 http://localhost/config
 done
