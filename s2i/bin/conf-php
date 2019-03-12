@@ -3,7 +3,9 @@
 phpini_path=${1:-/opt/app-root/etc/php/php.ini}
 XDEBUG=${XDEBUG:-false}
 SESSION__SAVE_PATH="${SESSION__SAVE_PATH:-/tmp/sessions}"
-mkdir -p /tmp/sessions
+UNIT_CONTROL_SOCKET=${2:-/run/control.unit.sock}
+UNIT_CONFIG_DIR=${3:-/opt/app-root/etc/unit}
+
 if [ "$XDEBUG" == "0" ] || [ "$XDEBUG" == "false" ] || [ "$XDEBUG" == "FALSE" ]
 then
     sed -i "/xdebug/d" $phpini_path
@@ -30,12 +32,17 @@ mkdir -p $SESSION__SAVE_PATH
 
 
 if [ -f "/usr/sbin/unitd" ]; then
-    for root in $(grep "\"root\":" /opt/app-root/etc/unit/www.conf | cut -d":" -f2 | cut -d'"' -f2) 
-    do
-      if [ ! -f "$root/index.php" ]; then
-          mkdir -p "$root"
-          cp /usr/local/lib/p.php "$root/index.php"
+    echo "COnfiguring unit"
+    for config in $UNIT_CONFIG_DIR/*.conf; do
+      for root in $(grep "\"root\":" $config | cut -d":" -f2 | cut -d'"' -f2) 
+      do
+        if [ ! -f "$root/index.php" ]; then
+            mkdir -p "$root"
+            cp /usr/local/lib/p.php "$root/index.php"
+        fi
+      done
+      if [ -f $UNIT_CONTROL_SOCKET ]; then
+        curl -X PUT --data-binary @$config --unix-socket $UNIT_CONTROL_SOCKET http://localhost/config
       fi
     done
-    curl -X PUT --data-binary @/opt/app-root/etc/unit/www.conf --unix-socket /run/control.unit.sock http://localhost/config
 fi

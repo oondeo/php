@@ -29,13 +29,25 @@ objects:
   data:
     www.conf: |
                 {
+                    "settings": {
+                        "http": {
+                            "header_read_timeout": 10,
+                            "body_read_timeout": 10,
+                            "send_timeout": 10,
+                            "idle_timeout": 120,
+                            "max_body_size": 6291456
+                        }
+                    },                  
                     "listeners": {
                         "127.0.0.1:8090": {
                             "application": "script_index_php"
                         },
                         "127.0.0.1:8091": {
                             "application": "direct_php"
-                        }
+                        },
+                        "127.0.0.1:8092": {
+                            "application": "adminer"
+                        }                        
                     },
 
                     "applications": {
@@ -45,13 +57,13 @@ objects:
                                 "max": 20,
                                 "spare": 5
                             },
-                            "root": "/opt/app-root/src",
+                            "root": "/opt/app-root/src/public_html",
                             "script": "index.php",
                             "options": {
                                 "file": "/opt/app-root/etc/php.ini",
                                 "admin": {
-                                    "memory_limit": "256M",
-                                    "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/tmp:/run/php",
+                                    "memory_limit": "192M",
+                                    "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/run/php",
                                     "session.save_path" : "30;660;/run/php/session",
                                     "variables_order": "EGPCS",
                                     "expose_php": "0"
@@ -72,13 +84,13 @@ objects:
                                 "max": 5,
                                 "spare": 0
                             },
-                            "root": "/opt/app-root/src",
+                            "root": "/opt/app-root/src/public_html",
                             "index": "index.php",
                             "options": {
                                 "file": "/opt/app-root/etc/php.ini",
                                 "admin": {
                                     "memory_limit": "256M",
-                                    "open_basedir": "/opt/app-root/src:/usr/local/lib:/tmp:/run/php",
+                                    "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/run/php",
                                     "session.save_path" : "30;660;/run/php/session",
                                     "variables_order": "EGPCS",
                                     "expose_php": "0"
@@ -87,14 +99,41 @@ objects:
                                     "display_errors": "0",
                                     "upload_max_filesize" : "32M",
                                     "post_max_size" : "32M",
-                                    "max_execution_time" : "60",
-                                    "max_input_time" : "60",
+                                    "max_execution_time" : "600",
+                                    "max_input_time" : "600",
                                     "opcache.enable" : "1"                                    
                                 }
                             }                              
-                        }
+                        },
+                        "adminer": {
+                            "type": "php",
+                            "processes": {
+                                "max": 5,
+                                "spare": 0
+                            },
+                            "root": "/usr/lib/php",
+                            "index": "adminer.php",
+                            "options": {
+                                "file": "/opt/app-root/etc/php.ini",
+                                "admin": {
+                                    "memory_limit": "256M",
+                                    "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/run/php",
+                                    "session.save_path" : "30;660;/run/php/session",
+                                    "variables_order": "EGPCS",
+                                    "expose_php": "0"
+                                },
+                                "user": {
+                                    "display_errors": "0",
+                                    "upload_max_filesize" : "32M",
+                                    "post_max_size" : "32M",
+                                    "max_execution_time" : "600",
+                                    "max_input_time" : "600",
+                                    "opcache.enable" : "1"                                    
+                                }
+                            }                              
+                        }                        
                     }
-                }
+                }          
   kind: ConfigMap
   metadata:
     name: "${NAME}-php"
@@ -104,9 +143,15 @@ objects:
                     include /etc/nginx/conection_params;
                     include /etc/nginx/cache_params;
                     include /etc/nginx/gzip_params;
-                    include /etc/nginx/rewrite_server;
+
                     #include naxsi/naxsi_core.rules;
 
+                    # Location order
+                    # = (exactly) : location = /path
+                    # ^~ (forward match) : location ^~ /path
+                    # ~ (regular expression case sensitive) : location ~ /path/
+                    # ~* (regular expression case insensitive) : location ~* .(jpg|png|bmp)
+                    # / : location /path
 
                     # If we receive X-Forwarded-Proto, pass it through; otherwise, pass along the
                     # scheme used to connect to this server
@@ -121,8 +166,29 @@ objects:
                     #  default upgrade;
                     #  '' close;
                     #}
+                    upstream unit_wp_index {
+                        server 127.0.0.1:8090;
+                    }
 
+                    upstream unit_wp_direct {
+                        server 127.0.0.1:8091;
+                    }
+                    upstream unit_adminer {
+                        server 127.0.0.1:8092;
+                    }
 
+                    server {
+
+                      listen 8081;
+                      server_name _;                    
+                      include /etc/nginx/rewrite_server;
+                      location = /adminer.php {
+                        proxy_pass http://unit_adminer;
+                        proxy_set_header Host $host;                        
+                      }
+                    }
+
+                    limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
                     server {
                         listen 8080 default_server;
                         server_name _;
@@ -135,11 +201,11 @@ objects:
                         # this prevents hidden files (beginning with a period) from being served
                         location ~ /\.          { access_log off; log_not_found off; deny all; }
 
-                            root /opt/app-root/src;
+                            root /opt/app-root/src/public_html;
                             index index.html index.htm index.php;
 
                             location / {
-                                try_files $uri $uri/ /index.php$is_args$args;
+                                try_files $uri $uri/ @index_php;
                             }
 
 
@@ -159,8 +225,19 @@ objects:
                               access_log off;
                             }
 
-
-                            location ~ \.(hh|php)$ {
+                            location ~* /wp-content/uploads/\.(hh|php)$ {
+                                return 404;
+                            }
+                            location ^~ /wp-admin {
+                                limit_req zone=one burst=4 nodelay;
+                                index index.php;
+                            }
+                            location @index_php {
+                                access_log off;
+                                proxy_pass       http://unit_wp_index;
+                                proxy_set_header Host $host;
+                            }
+                            location ~* \.(hh|php)$ {
                                 try_files $uri =404;
 
                                 ## Naxsi rules
@@ -170,18 +247,9 @@ objects:
                                 #{{NGINX_CACHE}}
 
 
-                                include fastcgi_cache_params;
-
-                                fastcgi_pass_header 'Accept-Encoding ""';
-
-                                fastcgi_pass 127.0.0.1:8090;
-                                # fastcgi_pass  unix:/var/run/www.sock;
-                                fastcgi_index index.php;
-                                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-                                fastcgi_param SCRIPT_NAME $fastcgi_script_name;
-                                fastcgi_param HTTPS $fe_https;
-
-                                include fastcgi_params;
+                                proxy_pass http://unit_wp_direct;
+                                proxy_set_header Host $host;
+                                #proxy_pass http://unix:/tmp/backend.socket:/uri/;
 
                             }
 
@@ -271,6 +339,8 @@ objects:
       spec:
         containers:
         - env:
+          - name: SESSION__SAVE_PATH
+            value: /run/php/session
           - name: DATABASE_SERVICE_NAME
             value: "${DATABASE_SERVICE_NAME}"
           - name: DATABASE_ENGINE
@@ -301,17 +371,17 @@ objects:
             value: "${OPCACHE_REVALIDATE_FREQ}"
           image: "php"
           name: php
-          lifecycle:
-            postStart:
-              exec:
-                command: ["/bin/bash", "-c", "conf-php"]    
-                containerName: php      
+          livenessProbe:
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 8090
+            timeoutSeconds: 2              
           volumeMounts:
           - mountPath: "/tmp"
             name: "tmp"           
           - mountPath: "/var/run"
             name: "run"
-          - mountPath: "/opt/app-root/etc/php-fpm.d"
+          - mountPath: "/opt/app-root/etc/unit"
             name: "php-config"
           - mountPath: "/opt/app-root/src"
             name: "${NAME}-data"                    
@@ -324,22 +394,13 @@ objects:
           image: "docker.io/oondeo/nginx"  
           name: "nginx"      
           livenessProbe:
-            httpGet:
-              path: "/health.php"
-              port: 8080
             initialDelaySeconds: 30
-            periodSeconds: 60
-            timeoutSeconds: 3
+            tcpSocket:
+              port: 8080
+            timeoutSeconds: 2
           ports:
           - containerPort: 8080
           - containerPort: 8081
-          readinessProbe:
-            httpGet:
-              path: "/health.php"
-              port: 8080
-            initialDelaySeconds: 3
-            periodSeconds: 60
-            timeoutSeconds: 3
           volumeMounts:
           - mountPath: "/opt/app-root/etc/conf.d"
             name: "nginx-config"          
@@ -382,6 +443,8 @@ objects:
   spec:
     accessModes:
     - ReadWriteOnce
+    matchLabels:
+      name: "${DATABASE_SERVICE_NAME}"
     storageClassName: local-storage
     resources:
       requests:
@@ -394,6 +457,8 @@ objects:
     accessModes:
     - ReadWriteOnce
     storageClassName: local-storage
+    matchLabels:
+      name: "${NAME}"    
     resources:
       requests:
         storage: "${VOLUME_CAPACITY}"        
@@ -465,7 +530,7 @@ objects:
             limits:
               memory: "${MEMORY_MYSQL_LIMIT}"
           volumeMounts:
-          - mountPath: "/var/lib/mysql/data"
+          - mountPath: "/opt/app-root/mysql"
             name: "${DATABASE_SERVICE_NAME}-data"
           - mountPath: "/tmp"
             name: "tmp"  
@@ -483,7 +548,7 @@ objects:
         - mysql
         from:
           kind: ImageStreamTag
-          name: mariadb:10.2
+          name: mariadb:10.3
           namespace: "${NAMESPACE}"
       type: ImageChange
     - type: ConfigChange

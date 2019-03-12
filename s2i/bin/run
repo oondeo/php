@@ -3,8 +3,11 @@
 #set -o errexit
 #export_vars=$(cgroup-limits) ; export $export_vars
 export DOCUMENTROOT=${DOCUMENTROOT:-/}
-PHP_INI_PATH=${PHP_INI_PATH:-/opt/app-root/etc/php/php.ini}
+PHP_INI_PATH=${PHP_INI:-/opt/app-root/etc/php/php.ini}
 STI_SCRIPTS_PATH=${STI_SCRIPTS_PATH:-/usr/libexec/s2i/bin}
+UNIT_CONTROL_SOCKET=${UNIT_CONTROL_SOCKET:-/run/control.unit.sock}
+UNIT_PID_FILE=${UNIT_PID_FILE:-/run/unit.pid}
+UNIT_CONFIG_DIR=${UNIT_CONFIG_DIR:-/opt/app-root/etc/unit}
 
 # A simple calculation for MaxRequestWorkers would be: Total Memory / Size Per Apache process.
 # The total memory is determined from the Cgroups and the average size for the
@@ -25,12 +28,13 @@ if [ -d "webroot" ]; then
 fi
 
 if [ -f "/usr/sbin/unitd" ]; then
+    unit_update.sh $PHP_INI_PATH $UNIT_CONTROL_SOCKET $UNIT_CONFIG_DIR &
     echo "Starting server"
-    exec /usr/sbin/unitd  --control "unix:/run/control.unit.sock" --pid /run/unitd.pid --state /opt/app-root/unit --no-daemon
+    exec /usr/sbin/unitd  --control "unix:$UNIT_CONTROL_SOCKET" --pid $UNIT_PID_FILE --state /opt/app-root/unit --no-daemon
 
 else
-echo "Apply environment variables attributes"
-conf-php $PHP_INI_PATH
-echo "Starting server"
-exec php-fpm -F -g /run/php-fpm.pid -y /opt/app-root/etc/php-fpm.conf -c /opt/app/root/etc/php/php.ini $*
+  echo "Apply environment variables attributes"
+  conf-php $PHP_INI_PATH
+  echo "Starting server"
+  exec php-fpm -F -g /run/php-fpm.pid -y /opt/app-root/etc/php-fpm.conf -c /opt/app/root/etc/php/php.ini $*
 fi
