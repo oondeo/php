@@ -27,6 +27,18 @@ if [ -d "webroot" ]; then
   $STI_SCRIPTS_PATH/assemble
 fi
 
+mkdir -p /tmp/sessions
+mkdir -p /run/php/sessions
+mkdir -p /opt/app-root/var/lib/php/sessions
+
+for d in $(ld -d $HOME/*/)
+do
+  n=$(basename $d)
+  mkdir -p /run/php/$n/sessions
+  mkdir -p /tmp/$n/sessions
+  mkdir -p /opt/app-root/var/lib/php/$n/sessions
+done 
+
 if [ -f "/usr/sbin/unitd" ]; then
     unit_update.sh $PHP_INI_PATH $UNIT_CONTROL_SOCKET $UNIT_CONFIG_DIR &
     echo "Starting server"

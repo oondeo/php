@@ -60,7 +60,7 @@ objects:
                             "root": "/opt/app-root/src/public_html",
                             "script": "index.php",
                             "options": {
-                                "file": "/opt/app-root/etc/php.ini",
+                                "file": "/opt/app-root/etc/php/php.ini",
                                 "admin": {
                                     "memory_limit": "192M",
                                     "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/run/php",
@@ -74,7 +74,7 @@ objects:
                                     "post_max_size" : "32M",
                                     "max_execution_time" : "60",
                                     "max_input_time" : "60",
-                                    "opcache.enable" : "1"     
+     
                                 }
                             }                            
                         },
@@ -82,12 +82,12 @@ objects:
                             "type": "php",
                             "processes": {
                                 "max": 5,
-                                "spare": 0
+                                "spare": 1
                             },
                             "root": "/opt/app-root/src/public_html",
                             "index": "index.php",
                             "options": {
-                                "file": "/opt/app-root/etc/php.ini",
+                                "file": "/opt/app-root/etc/php/php.ini",
                                 "admin": {
                                     "memory_limit": "256M",
                                     "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/run/php",
@@ -100,8 +100,8 @@ objects:
                                     "upload_max_filesize" : "32M",
                                     "post_max_size" : "32M",
                                     "max_execution_time" : "600",
-                                    "max_input_time" : "600",
-                                    "opcache.enable" : "1"                                    
+                                    "max_input_time" : "600"
+                            
                                 }
                             }                              
                         },
@@ -109,12 +109,12 @@ objects:
                             "type": "php",
                             "processes": {
                                 "max": 5,
-                                "spare": 0
+                                "spare": 1
                             },
                             "root": "/usr/lib/php",
                             "index": "adminer.php",
                             "options": {
-                                "file": "/opt/app-root/etc/php.ini",
+                                "file": "/opt/app-root/etc/php/php.ini",
                                 "admin": {
                                     "memory_limit": "256M",
                                     "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/run/php",
@@ -128,7 +128,7 @@ objects:
                                     "post_max_size" : "32M",
                                     "max_execution_time" : "600",
                                     "max_input_time" : "600",
-                                    "opcache.enable" : "1"                                    
+                                    
                                 }
                             }                              
                         }                        
@@ -184,7 +184,10 @@ objects:
                       include /etc/nginx/rewrite_server;
                       location = /adminer.php {
                         proxy_pass http://unit_adminer;
-                        proxy_set_header Host $host;                        
+                        proxy_set_header Host $host:443;
+                        proxy_set_header PORT 443;                                
+                        proxy_set_header X_FORWARDED_PROTO https;
+                        proxy_set_header X_FORWARDED_PORT 443;                     
                       }
                     }
 
@@ -202,10 +205,10 @@ objects:
                         location ~ /\.          { access_log off; log_not_found off; deny all; }
 
                             root /opt/app-root/src/public_html;
-                            index index.html index.htm index.php;
+                            #index index.html index.htm index.php;
 
                             location / {
-                                try_files $uri $uri/ @index_php;
+                                try_files index.html index.htm $uri @index_php;
                             }
 
 
@@ -228,14 +231,17 @@ objects:
                             location ~* /wp-content/uploads/\.(hh|php)$ {
                                 return 404;
                             }
-                            location ^~ /wp-admin {
+                            location /wp-admin {
                                 limit_req zone=one burst=4 nodelay;
                                 index index.php;
                             }
                             location @index_php {
                                 access_log off;
                                 proxy_pass       http://unit_wp_index;
-                                proxy_set_header Host $host;
+                                proxy_set_header Host $host:443;
+                                proxy_set_header PORT 443;                                
+                                proxy_set_header X_FORWARDED_PROTO https;
+                                proxy_set_header X_FORWARDED_PORT 443;
                             }
                             location ~* \.(hh|php)$ {
                                 try_files $uri =404;
@@ -248,7 +254,10 @@ objects:
 
 
                                 proxy_pass http://unit_wp_direct;
-                                proxy_set_header Host $host;
+                                proxy_set_header Host $host:443;
+                                proxy_set_header PORT 443;                                
+                                proxy_set_header X_FORWARDED_PROTO https;
+                                proxy_set_header X_FORWARDED_PORT 443;
                                 #proxy_pass http://unix:/tmp/backend.socket:/uri/;
 
                             }

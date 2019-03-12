@@ -31,8 +31,8 @@ done < <(env)
 mkdir -p $SESSION__SAVE_PATH
 
 
-if [ -f "/usr/sbin/unitd" ]; then
-    echo "COnfiguring unit"
+if [ -e "/usr/sbin/unitd" ]; then
+
     for config in $UNIT_CONFIG_DIR/*.conf; do
       for root in $(grep "\"root\":" $config | cut -d":" -f2 | cut -d'"' -f2) 
       do
@@ -41,7 +41,9 @@ if [ -f "/usr/sbin/unitd" ]; then
             cp /usr/local/lib/php/p.php "$root/index.php" || true
         fi
       done
-      if [ -f $UNIT_CONTROL_SOCKET ]; then
+      if [ -e "$UNIT_CONTROL_SOCKET" ]; then
+        echo "COnfiguring unit"      
+        #echo curl -X PUT --data-binary @$config --unix-socket $UNIT_CONTROL_SOCKET http://localhost/config
         curl -X PUT --data-binary @$config --unix-socket $UNIT_CONTROL_SOCKET http://localhost/config
       fi
     done
