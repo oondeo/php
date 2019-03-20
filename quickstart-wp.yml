@@ -31,11 +31,11 @@ objects:
                 {
                     "settings": {
                         "http": {
-                            "header_read_timeout": 10,
-                            "body_read_timeout": 10,
-                            "send_timeout": 10,
-                            "idle_timeout": 120,
-                            "max_body_size": 6291456
+                            "header_read_timeout": 600,
+                            "body_read_timeout": 600,
+                            "send_timeout": 600,
+                            "idle_timeout": 900,
+                            "max_body_size": 62914560
                         }
                     },                  
                     "listeners": {
@@ -53,6 +53,10 @@ objects:
                     "applications": {
                         "script_index_php": {
                             "type": "php",
+                            "limits": {
+                                "timeout": 60,
+                                "requests": 10000
+                            },                            
                             "processes": {
                                 "max": 20,
                                 "spare": 5
@@ -64,7 +68,7 @@ objects:
                                 "admin": {
                                     "memory_limit": "192M",
                                     "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/run/php",
-                                    "session.save_path" : "30;660;/run/php/session",
+                                    "session.save_path" : "/run/php/session",
                                     "variables_order": "EGPCS",
                                     "expose_php": "0"
                                 },
@@ -84,6 +88,10 @@ objects:
                                 "max": 5,
                                 "spare": 1
                             },
+                            "limits": {
+                                "timeout": 10,
+                                "requests": 10000
+                            },                              
                             "root": "/opt/app-root/src/public_html",
                             "index": "index.php",
                             "options": {
@@ -91,7 +99,7 @@ objects:
                                 "admin": {
                                     "memory_limit": "256M",
                                     "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/run/php",
-                                    "session.save_path" : "30;660;/run/php/session",
+                                    "session.save_path" : "/run/php/session",
                                     "variables_order": "EGPCS",
                                     "expose_php": "0"
                                 },
@@ -109,16 +117,25 @@ objects:
                             "type": "php",
                             "processes": {
                                 "max": 5,
-                                "spare": 1
+                                "spare": 1,
+                                "idle_timeout": 15,
                             },
-                            "root": "/usr/lib/php",
+                            "limits": {
+                                "timeout": 600,
+                                "requests": 10000
+                            },
+                            "environment": {
+                                "server": "nginx/0.1"
+                            },
+                            "working_directory": "/usr/local/lib/php",                             
+                            "root": "/usr/local/lib/php",
                             "index": "adminer.php",
                             "options": {
                                 "file": "/opt/app-root/etc/php/php.ini",
                                 "admin": {
                                     "memory_limit": "256M",
                                     "open_basedir": "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/run/php",
-                                    "session.save_path" : "30;660;/run/php/session",
+                                    "session.save_path" : "/run/php/session",
                                     "variables_order": "EGPCS",
                                     "expose_php": "0"
                                 },
@@ -155,17 +172,17 @@ objects:
 
                     # If we receive X-Forwarded-Proto, pass it through; otherwise, pass along the
                     # scheme used to connect to this server
-                    #map $http_x_forwarded_proto $proxy_x_forwarded_proto {
-                    #  default $http_x_forwarded_proto;
-                    #  ''      $scheme;
-                    #}
+                    map $http_x_forwarded_proto $proxy_x_forwarded_proto {
+                     default $http_x_forwarded_proto;
+                     ''      $scheme;
+                    }
 
                     # If we receive Upgrade, set Connection to "upgrade"; otherwise, delete any
                     # Connection header that may have been passed to this server
-                    #map $http_upgrade $proxy_connection {
-                    #  default upgrade;
-                    #  '' close;
-                    #}
+                    map $http_upgrade $proxy_connection {
+                     default upgrade;
+                     '' close;
+                    }
                     upstream unit_wp_index {
                         server 127.0.0.1:8090;
                     }
@@ -184,10 +201,22 @@ objects:
                       include /etc/nginx/rewrite_server;
                       location = /adminer.php {
                         proxy_pass http://unit_adminer;
-                        proxy_set_header Host $host:443;
-                        proxy_set_header PORT 443;                                
-                        proxy_set_header X_FORWARDED_PROTO https;
-                        proxy_set_header X_FORWARDED_PORT 443;                     
+                                proxy_set_header Host $http_x_forwarded_host:$http_x_forwarded_port;
+                                proxy_set_header PORT $http_x_forwarded_port;  
+                                proxy_set_header X-Real-IP $http_x_forwarded_host;
+                                proxy_set_header X-Real-SCHEME $http_x_forwarded_proto;
+                                proxy_set_header X-Real-HTTPS $fe_https; 
+                                #proxy_buffering off;
+                                proxy_buffer_size 16k;
+                                #proxy_busy_buffers_size 256k;
+                                #proxy_buffers 64 4k;
+                                proxy_read_timeout 600; 
+                                proxy_send_timeout 600;
+                                proxy_connect_timeout 600;
+                                client_body_timeout 600;
+                                send_timeout 600;
+                                client_max_body_size 64M;
+                                client_body_buffer_size 8M;                                                      
                       }
                     }
 
@@ -237,11 +266,24 @@ objects:
                             }
                             location @index_php {
                                 access_log off;
+                                #include proxy_cache_params;
                                 proxy_pass       http://unit_wp_index;
-                                proxy_set_header Host $host:443;
-                                proxy_set_header PORT 443;                                
-                                proxy_set_header X_FORWARDED_PROTO https;
-                                proxy_set_header X_FORWARDED_PORT 443;
+                                proxy_set_header Host $http_x_forwarded_host:$http_x_forwarded_port;
+                                proxy_set_header PORT $http_x_forwarded_port;  
+                                proxy_set_header X-Real-IP $http_x_forwarded_host;
+                                proxy_set_header X-Real-SCHEME $http_x_forwarded_proto;
+                                proxy_set_header X-Real-HTTPS $fe_https;   
+                                #proxy_buffering off;
+                                proxy_buffer_size 8k;
+                                #proxy_busy_buffers_size 256k;
+                                #proxy_buffers 64 4k;
+                                proxy_read_timeout 60; 
+                                proxy_send_timeout 60;
+                                proxy_connect_timeout 60;
+                                client_body_timeout 60;
+                                send_timeout 60;
+                                # client_max_body_size 64M;
+                                # client_body_buffer_size 8M;                                    
                             }
                             location ~* \.(hh|php)$ {
                                 try_files $uri =404;
@@ -252,13 +294,25 @@ objects:
                                 #Bypass cache
                                 #{{NGINX_CACHE}}
 
-
+                                #include proxy_cache_params;
                                 proxy_pass http://unit_wp_direct;
-                                proxy_set_header Host $host:443;
-                                proxy_set_header PORT 443;                                
-                                proxy_set_header X_FORWARDED_PROTO https;
-                                proxy_set_header X_FORWARDED_PORT 443;
+                                proxy_set_header Host $http_x_forwarded_host:$http_x_forwarded_port;
+                                proxy_set_header PORT $http_x_forwarded_port;  
+                                proxy_set_header X-Real-IP $http_x_forwarded_host;
+                                proxy_set_header X-Real-SCHEME $http_x_forwarded_proto;
+                                proxy_set_header X-Real-HTTPS $fe_https;    
                                 #proxy_pass http://unix:/tmp/backend.socket:/uri/;
+                                #proxy_buffering off;
+                                proxy_buffer_size 16k;
+                                #proxy_busy_buffers_size 256k;
+                                #proxy_buffers 64 4k;
+                                proxy_read_timeout 600; 
+                                proxy_send_timeout 600;
+                                proxy_connect_timeout 600;
+                                client_body_timeout 600;
+                                send_timeout 600;
+                                client_max_body_size 64M;
+                                client_body_buffer_size 8M;                                    
 
                             }
 
@@ -400,7 +454,8 @@ objects:
         - env:
           - name: DOMAIN_PROD
             value: "${APPLICATION_DOMAIN}"
-          image: "docker.io/oondeo/nginx"  
+          image: "docker.io/oondeo/nginx"
+          imagePullPolicy: Always 
           name: "nginx"      
           livenessProbe:
             initialDelaySeconds: 30
@@ -505,6 +560,24 @@ objects:
       spec:
         containers:
         - env:
+          - name: QUERY_CACHE_SIZE
+            value: "50MB"
+          - name: JOIN_BUFFER_SIZE
+            value: "1MB"
+          - name: SORT_BUFFER_SIZE
+            value: "2MB"            
+          - name: TMP_TABLE_SIZE
+            value: "50MB"
+          - name: MAX_HEAP_TABLE_SIZE
+            value: "50MB"
+          - name: MYSQLD__INNODB_DOUBLEWRITE
+            value: "0"
+          - name: MYSQLD__INNODB_LOG_FILE_SIZE
+            value: "128M"
+          - name: MYSQLD__INNODB_BUFFER_POOL_SIZE
+            value: "1024M"
+          - name: MYSQLD__INNODB_BUFFER_POOL_INSTANCES
+            value: "2"            
           - name: MYSQL_USER
             valueFrom:
               secretKeyRef:

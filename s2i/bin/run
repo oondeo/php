@@ -31,7 +31,7 @@ mkdir -p /tmp/sessions
 mkdir -p /run/php/sessions
 mkdir -p /opt/app-root/var/lib/php/sessions
 
-for d in $(ld -d $HOME/*/)
+for d in $(ls -d $HOME/*/)
 do
   n=$(basename $d)
   mkdir -p /run/php/$n/sessions

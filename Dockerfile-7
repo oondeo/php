@@ -24,8 +24,12 @@ RUN apk --no-cache upgrade && apk-install $PHP_PACKAGES && mkdir -p /opt/app-roo
 
 RUN ln -sf /dev/stdout /var/log/unit.log
 
+#remove default config
+RUN rm -f /etc/php7/conf.d/*
+
 COPY s2i/bin $STI_SCRIPTS_PATH
 COPY etc /opt/app-root/etc/
+COPY etc/php /etc/php7
 COPY lib /usr/local/lib
 
 RUN /usr/bin/docker-footer
