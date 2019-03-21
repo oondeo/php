@@ -29,7 +29,13 @@ while IFS='=' read -r name value ; do
 done < <(env)
 
 mkdir -p $SESSION__SAVE_PATH
-
+for d in $(ls -d $HOME/*/)
+do
+  n=$(basename $d)
+  mkdir -p /run/php/$n/sessions
+  mkdir -p /tmp/$n/sessions
+  mkdir -p /opt/app-root/var/lib/php/$n/sessions
+done 
 
 if [ -e "/usr/sbin/unitd" ]; then
 
