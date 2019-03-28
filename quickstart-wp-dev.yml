@@ -47,7 +47,13 @@ objects:
                         },
                         "*:8092": {
                             "application": "adminer"
-                        }                        
+                        },
+                        "*:8093": {
+                            "application": "dev_script_index_php"
+                        },
+                        "*:8094": {
+                            "application": "dev_direct_php"
+                        }                                                  
                     },
 
                     "applications": {
@@ -113,6 +119,68 @@ objects:
                                 }
                             }                              
                         },
+                        "dev_script_index_php": {
+                            "type": "php",
+                            "limits": {
+                                "timeout": 60,
+                                "requests": 10000
+                            },                            
+                            "processes": {
+                                "max": 5,
+                                "spare": 0
+                            },
+                            "root": "/opt/app-root/src",
+                            "script": "index.php",
+                            "options": {
+                                "file": "/opt/app-root/etc/php/php.ini",
+                                "admin": {
+                                    "memory_limit": "192M",
+                                    "open_basedir": "/opt/app-root/src/${NAME}-dev.sol.oondeo.es:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp/${NAME}-dev.sol.oondeo.es:/run/php",
+                                    "session.save_path" : "/tmp/${NAME}-dev.sol.oondeo.es",
+                                    "variables_order": "EGPCS",
+                                    "expose_php": "0"
+                                },
+                                "user": {
+                                    "display_errors": "0",
+                                    "upload_max_filesize" : "32M",
+                                    "post_max_size" : "32M",
+                                    "max_execution_time" : "60",
+                                    "max_input_time" : "60",
+     
+                                }
+                            }                            
+                        },
+                        "dev_direct_php": {
+                            "type": "php",
+                            "processes": {
+                                "max": 5,
+                                "spare": 0
+                            },
+                            "limits": {
+                                "timeout": 10,
+                                "requests": 10000
+                            },                              
+                            "root": "/opt/app-root/src",
+                            "index": "index.php",
+                            "options": {
+                                "file": "/opt/app-root/etc/php/php.ini",
+                                "admin": {
+                                    "memory_limit": "256M",
+                                    "open_basedir": "/opt/app-root/src/${NAME}-dev.sol.oondeo.es:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp/${NAME}-dev.sol.oondeo.es:/run/php",
+                                    "session.save_path" : "/tmp/${NAME}-dev.sol.oondeo.es",
+                                    "variables_order": "EGPCS",
+                                    "expose_php": "0"
+                                },
+                                "user": {
+                                    "display_errors": "0",
+                                    "upload_max_filesize" : "32M",
+                                    "post_max_size" : "32M",
+                                    "max_execution_time" : "600",
+                                    "max_input_time" : "600"
+                            
+                                }
+                            }                              
+                        },                        
                         "adminer": {
                             "type": "php",
                             "processes": {
@@ -199,38 +267,7 @@ objects:
                     upstream unit_wp_direct {
                         server 127.0.0.1:8091;
                     }
-                    upstream unit_adminer {
-                        server 127.0.0.1:8092;
-                    }
-
-                    server {
-
-                      listen 8081;
-                      server_name _;                    
-                      include /etc/nginx/rewrite_server;
-                      location = /adminer.php {
-                        proxy_pass http://unit_adminer;
-                                proxy_set_header Host $http_x_forwarded_host:$http_x_forwarded_port;
-                                proxy_set_header PORT $http_x_forwarded_port;  
-                                proxy_set_header X-Real-IP $http_x_forwarded_host;
-                                proxy_set_header X-Real-SCHEME $http_x_forwarded_proto;
-                                proxy_set_header X-Real-HTTPS $fe_https; 
-                                # send the client a "request timed out" if the body is not loaded by this time. Default 60.
-                                client_body_timeout 10m;
-                                client_max_body_size 64M;
-                                client_body_buffer_size     4M;
-
-                                # Permit bigger uploads
-                                proxy_buffering off;
-                                proxy_buffer_size 32k;
-                                proxy_buffers 4 32k;
-                                proxy_busy_buffers_size 64k;
-                                proxy_read_timeout 600; 
-                                proxy_send_timeout 600;
-                                proxy_connect_timeout 600;                                                     
-                      }
-                    }
-
+                
                     limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
                     server {
                         listen 8080 default_server;
@@ -324,15 +361,188 @@ objects:
                             }
 
                     }
+                    server {
+                        listen 8082 default_server;
+                        server_name _;
 
-                    # server {
-                    #     listen       8080 default_server;
-                    #     server_name  _;
-                    #     return       301 http://{{DOMAIN_PROD}};
-                    # }
+                        #access_log off;
+
+                        include error_page_params;
+                        include server_cache_params;
+
+                        # this prevents hidden files (beginning with a period) from being served
+                        location ~ /\.          { access_log off; log_not_found off; deny all; }
+
+                        location = /xmlrpc.php { return 404; }
+
+                            root /opt/app-root/src/${NAME}-dev.sol.oondeo.es/public_html;
+                            #index index.html index.htm index.php;
+
+
+                            location /wp-content/uploads {
+                                root /opt/app-root/src;
+                                try_files /${NAME}-dev.sol.oondeo.es/public_html/$uri /${APPLICATION_DOMAIN}/public_html/$uri =404;
+                            }
+
+                            location / {
+                                try_files $uri /index.html /index.htm @index_php;
+                            }
+
+
+                            location ~* .(ogg|ogv|svg|svgz|eot|otf|woff|mp4|ttf|css|rss|atom|js|jpg|jpeg|gif|png|ico|zip|tgz|gz|rar|bz2|doc|xls|exe|ppt|tar|mid|midi|wav|bmp|rtf)$ {
+                                    expires max;
+                                    log_not_found off;
+                                    access_log off;
+                                    aio threads=default;
+                            }
+                            location = /robots.txt {
+                                    access_log off;
+                                    log_not_found off;
+                            }
+                            location = /favicon.ico {
+                              expires max;
+                              log_not_found off;
+                              access_log off;
+                            }
+
+                            location ~* /wp-content/uploads/\.(hh|php)$ {
+                                return 404;
+                            }
+                            location /wp-admin {
+                                limit_req zone=one burst=4 nodelay;
+                                index index.php;
+                            }
+                            location /wp-login.php {
+                                limit_req zone=one burst=4 nodelay;                        
+                            }                            
+                            location @index_php {
+                                #access_log off;
+                                #fastcgi_ignore_headers Vary Set-Cookie Cache-Control Expires X-Accel-Expires;  
+                                #include proxy_cache_params;
+                                proxy_pass       http://unit_wp_index_dev;
+                                proxy_set_header Host $http_x_forwarded_host:$http_x_forwarded_port;
+                                proxy_set_header PORT $http_x_forwarded_port;  
+                                proxy_set_header X-Real-IP $http_x_forwarded_host;
+                                proxy_set_header X-Real-SCHEME $http_x_forwarded_proto;
+                                proxy_set_header X-Real-HTTPS $fe_https;                                    
+                            }
+                            location ~* \.(hh|php)$ {
+                                try_files $uri =404;
+
+                                ## Naxsi rules
+                                #include fastcgi_naxsi_params
+
+                                #Bypass cache
+                                #{{NGINX_CACHE}}
+
+                                #include proxy_cache_params;
+                                proxy_pass http://unit_wp_direct_dev;
+                                proxy_set_header Host $http_x_forwarded_host:$http_x_forwarded_port;
+                                proxy_set_header PORT $http_x_forwarded_port;  
+                                proxy_set_header X-Real-IP $http_x_forwarded_host;
+                                proxy_set_header X-Real-SCHEME $http_x_forwarded_proto;
+                                proxy_set_header X-Real-HTTPS $fe_https;    
+                                # send the client a "request timed out" if the body is not loaded by this time. Default 60.
+                                client_body_timeout 10m;
+                                client_max_body_size 64M;
+                                client_body_buffer_size     4M;
+
+                                # Permit bigger uploads
+                                proxy_buffering off;
+                                proxy_buffer_size 32k;
+                                proxy_buffers 4 32k;
+                                proxy_busy_buffers_size 64k;
+                                proxy_read_timeout 600; 
+                                proxy_send_timeout 600;
+                                proxy_connect_timeout 600;                                    
+
+                            }
+
+                    }
   kind: ConfigMap
   metadata:
     name: ${NAME}-nginx
+- apiVersion: v1
+  data:
+    www.conf: |
+                    include /etc/nginx/cache_params;
+                    include /etc/nginx/gzip_params;
+
+                    # Only on server block
+                    #client_header_buffer_size    1k;
+                    # Only on server block
+                    #large_client_header_buffers  4 8k;
+
+                    # If the client stops reading data, free up the stale client connection after this much time. Default 60.
+                    #send_timeout 6;
+                    # Only on server block
+                    #client_header_timeout  3m;
+
+                    #include naxsi/naxsi_core.rules;
+
+                    # Location order
+                    # = (exactly) : location = /path
+                    # ^~ (forward match) : location ^~ /path
+                    # ~ (regular expression case sensitive) : location ~ /path/
+                    # ~* (regular expression case insensitive) : location ~* .(jpg|png|bmp)
+                    # / : location /path
+
+                    # If we receive X-Forwarded-Proto, pass it through; otherwise, pass along the
+                    # scheme used to connect to this server
+                    # If we receive Upgrade, set Connection to "upgrade"; otherwise, delete any
+                    # Connection header that may have been passed to this server
+                    map $http_upgrade $proxy_connection {
+                     default upgrade;
+                     '' close;
+                    }
+                    upstream unit_wp_index {
+                        server 127.0.0.1:8090;
+                    }
+
+                    upstream unit_wp_direct {
+                        server 127.0.0.1:8091;
+                    }
+                    upstream unit_wp_index_dev {
+                        server 127.0.0.1:8093;
+                    }
+
+                    upstream unit_wp_direct_dev {
+                        server 127.0.0.1:8094;
+                    }                    
+                    upstream unit_adminer {
+                        server 127.0.0.1:8092;
+                    }
+                
+                    server {
+
+                      listen 1080;
+                      server_name _;                    
+                      include /etc/nginx/rewrite_server;
+                      location = /adminer.php {
+                        proxy_pass http://unit_adminer;
+                                proxy_set_header Host $http_x_forwarded_host:$http_x_forwarded_port;
+                                proxy_set_header PORT $http_x_forwarded_port;  
+                                proxy_set_header X-Real-IP $http_x_forwarded_host;
+                                proxy_set_header X-Real-SCHEME $http_x_forwarded_proto;
+                                proxy_set_header X-Real-HTTPS $fe_https; 
+                                # send the client a "request timed out" if the body is not loaded by this time. Default 60.
+                                client_body_timeout 10m;
+                                client_max_body_size 64M;
+                                client_body_buffer_size     4M;
+
+                                # Permit bigger uploads
+                                proxy_buffering off;
+                                proxy_buffer_size 32k;
+                                proxy_buffers 4 32k;
+                                proxy_busy_buffers_size 64k;
+                                proxy_read_timeout 600; 
+                                proxy_send_timeout 600;
+                                proxy_connect_timeout 600;                                                     
+                      }
+                    }
+  kind: ConfigMap
+  metadata:
+    name: ${NAME}-nginx-backend
 - apiVersion: v1
   kind: Secret
   metadata:
@@ -365,14 +575,29 @@ objects:
       description: Exposes and load balances the application pods
       service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
         "kind": "Service"}]'
+    name: "${NAME}-admin"
+  spec:
+    ports:
+    - name: web
+      port: 1080
+      targetPort: 1080
+    selector:
+      name: "${NAME}"    
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes and load balances the application pods
+      service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
+        "kind": "Service"}]'
     name: "${NAME}-dev"
   spec:
     ports:
     - name: web
-      port: 8081
-      targetPort: 8081
+      port: 8082
+      targetPort: 8082
     selector:
-      name: "${NAME}"      
+      name: "${NAME}"
 - apiVersion: v1
   kind: Route
   metadata:
@@ -384,7 +609,19 @@ objects:
       termination: edge    
     to:
       kind: Service
-      name: "${NAME}-dev"
+      name: "${NAME}-dev"      
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: "${NAME}-admin"
+  spec:
+    host: ""
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: edge    
+    to:
+      kind: Service
+      name: "${NAME}-admin"
 - apiVersion: v1
   kind: DeploymentConfig
   metadata:
@@ -469,11 +706,33 @@ objects:
               port: 8080
             timeoutSeconds: 2
           ports:
-          - containerPort: 8080
-          - containerPort: 8081
+          - containerPort: 8080       
           volumeMounts:
           - mountPath: "/opt/app-root/etc/conf.d"
             name: "nginx-config"          
+          - mountPath: "/opt/app-root/src"
+            name: "${NAME}-data"
+          - mountPath: "/var/run"
+            name: "run" 
+          - mountPath: "/tmp"
+            name: "tmp"
+        - env:
+          - name: DOMAIN_PROD
+            value: "${APPLICATION_DOMAIN}"
+          image: "docker.io/oondeo/nginx"
+          imagePullPolicy: Always 
+          name: "nginx-backend"      
+          livenessProbe:
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 1080
+            timeoutSeconds: 2
+          ports:
+          - containerPort: 1080
+          - containerPort: 8082          
+          volumeMounts:
+          - mountPath: "/opt/app-root/etc/conf.d"
+            name: "nginx-backend-config"          
           - mountPath: "/opt/app-root/src"
             name: "${NAME}-data"
           - mountPath: "/var/run"
