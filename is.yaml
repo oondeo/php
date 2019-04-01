@@ -61,6 +61,23 @@ spec:
     referencePolicy:
       type: Source      
   - annotations:
+      description: Build and run PHP 7.2 applications on CentOS 7. For more information
+        about using this builder image, including OpenShift considerations, see https://github.com/oondeo/docker-php/README.md.
+      iconClass: icon-php
+      openshift.io/display-name: PHP 7.2 FPM
+      sampleRepo: https://github.com/WordPress/WordPress.git
+      supports: php:7.2,php
+      tags: builder,php
+      version: "7.2-fpm"
+    from:
+      kind: DockerImage
+      name: docker.io/oondeo/php:7.2-fpm
+    generation: 9
+    importPolicy: {}
+    name: "7.2-fpm"
+    referencePolicy:
+      type: Source
+  - annotations:
       description: |-
         Build and run PHP applications on CentOS 7. For more information about using this builder image, including OpenShift considerations, see https://github.com/sclorg/s2i-php-container/blob/master/5.6/README.md.
         WARNING: By selecting this tag, your application will automatically update to use the latest version of PHP available on OpenShift, including major versions updates.

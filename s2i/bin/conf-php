@@ -5,24 +5,27 @@ XDEBUG=${XDEBUG:-false}
 SESSION__SAVE_PATH="${SESSION__SAVE_PATH:-/tmp/sessions}"
 UNIT_CONTROL_SOCKET=${2:-/run/control.unit.sock}
 UNIT_CONFIG_DIR=${3:-/opt/app-root/etc/unit}
+PHP_FPM_PIDFILE=${2:-/run/fpm.pid}
 
 if [ "$XDEBUG" == "0" ] || [ "$XDEBUG" == "false" ] || [ "$XDEBUG" == "FALSE" ]
 then
     sed -i "/xdebug/d" $phpini_path
 fi
-while IFS='=' read -r name value ; do
-  if [[ $name == 'PHPINI_'* ]]; then
-    name="${name/PHPINI_/}"
-    name="${name,,}"
-    name="${name/__/\.}"
+while IFS='=' read -r NAME VALUE ; do
+  if [[ $NAME == 'PHPINI_'* ]]; then
+    NAME="${NAME/PHPINI_/}"
+    NAME="${NAME,,}"
+    NAME="${NAME/_d_/\.}"
+    NAME="${NAME/_s_/\-}"    
+    NAME="${NAME/__/\.}"
     sed -i "/$name[ =].*/d" $phpini_path
-    if [ "$value" != "" ]
+    if [ "$VALUE" != "" ]
     then
-      #echo "$name = ${value//\//\\/} " >> $phpini_path
-      echo "$name = ${value} " >> $phpini_path
+      #echo "$name = ${VALUE//\//\\/} " >> $phpini_path
+      echo "$name = ${VALUE} " >> $phpini_path
       if [ "$name" == "session.save_path" ]
       then
-        SESSION__SAVE_PATH="$value"
+        SESSION__SAVE_PATH="$VALUE"
       fi
     fi
   fi
@@ -36,6 +39,7 @@ do
   mkdir -p /tmp/$n/sessions
   mkdir -p /opt/app-root/var/lib/php/$n/sessions
 done 
+kill -USR2 `cat $PHP_FPM_PIDFILE` || true
 
 if [ -e "/usr/sbin/unitd" ]; then
 

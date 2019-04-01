@@ -8,6 +8,8 @@ STI_SCRIPTS_PATH=${STI_SCRIPTS_PATH:-/usr/libexec/s2i/bin}
 UNIT_CONTROL_SOCKET=${UNIT_CONTROL_SOCKET:-/run/control.unit.sock}
 UNIT_PID_FILE=${UNIT_PID_FILE:-/run/unit.pid}
 UNIT_CONFIG_DIR=${UNIT_CONFIG_DIR:-/opt/app-root/etc/unit}
+PHP_FPM_PIDFILE=${PHP_FPM_PIDFILE:-/run/php-fpm.pid}
+PHP_FPM_CONFIG_DIR=${PHP_FPM_CONFIG_DIR:-/opt/app-root/etc/php-fpm.d}
 
 # A simple calculation for MaxRequestWorkers would be: Total Memory / Size Per Apache process.
 # The total memory is determined from the Cgroups and the average size for the
@@ -32,13 +34,13 @@ mkdir -p /run/php/sessions
 mkdir -p /opt/app-root/var/lib/php/sessions
 
 if [ -f "/usr/sbin/unitd" ]; then
-    unit_update.sh $PHP_INI_PATH $UNIT_CONTROL_SOCKET $UNIT_CONFIG_DIR &
+    conf_update.sh $PHP_INI_PATH $UNIT_CONTROL_SOCKET $UNIT_CONFIG_DIR &
     echo "Starting server"
     exec /usr/sbin/unitd  --control "unix:$UNIT_CONTROL_SOCKET" --pid $UNIT_PID_FILE --state /opt/app-root/unit --no-daemon
 
 else
   echo "Apply environment variables attributes"
-  conf-php $PHP_INI_PATH
+  conf_update.sh $PHP_INI_PATH $PHP_FPM_PIDFILE & 
   echo "Starting server"
-  exec php-fpm -F -g /run/php-fpm.pid -y /opt/app-root/etc/php-fpm.conf -c /opt/app/root/etc/php/php.ini $*
+  exec php-fpm -F -g $PHP_FPM_PIDFILE -y /opt/app-root/etc/php-fpm.conf -c $PHP_INI_PATH $*
 fi

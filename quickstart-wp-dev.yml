@@ -641,7 +641,7 @@ objects:
             - "/usr/libexec/s2i/bin/migrate-database.sh"
             containerName: php
           failurePolicy: Retry
-      type: Recreate
+      type: Rolling
     template:
       metadata:
         labels:
@@ -716,6 +716,18 @@ objects:
             name: "run" 
           - mountPath: "/tmp"
             name: "tmp"
+        - image: "docker.io/oondeo/crond"
+          imagePullPolicy: Always 
+          name: "crond"      
+          volumeMounts:
+          - mountPath: "/opt/app-root/etc"
+            name: "crontab"          
+          - mountPath: "/opt/app-root/src"
+            name: "${NAME}-data"
+          - mountPath: "/var/run"
+            name: "run" 
+          - mountPath: "/tmp"
+            name: "tmp"            
         - env:
           - name: DOMAIN_PROD
             value: "${APPLICATION_DOMAIN}"
@@ -785,7 +797,10 @@ objects:
             name: "${NAME}-php"
         - name: "nginx-config"
           configMap:
-            name: "${NAME}-nginx"                     
+            name: "${NAME}-nginx" 
+        - name: "crontab"
+          configMap:
+            name: "${NAME}-crontab"                                 
         - name: "${NAME}-data"
           persistentVolumeClaim:
             claimName: "${NAME}"
