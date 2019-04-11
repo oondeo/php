@@ -40,7 +40,7 @@ if [ -f "/usr/sbin/unitd" ]; then
 
 else
   echo "Apply environment variables attributes"
-  conf_update.sh $PHP_INI_PATH $PHP_FPM_PIDFILE & 
+  conf_update.sh $PHP_INI_PATH $PHP_FPM_PIDFILE /opt/app-root/etc/php-fpm.d & 
   echo "Starting server"
   exec php-fpm -F -g $PHP_FPM_PIDFILE -y /opt/app-root/etc/php-fpm.conf -c $PHP_INI_PATH $*
 fi

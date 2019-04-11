@@ -30,7 +30,7 @@ objects:
   metadata:
     name: "${NAME}-crontab"
   data:
-    ${NAME}: "* * * * * default curl 'http://127.0.0.1:8080'"
+    ${NAME}: "*/10 * * * * default curl -k -H 'Host: ${APPLICATION_DOMAIN}' 'http://127.0.0.1:8082/wp-cron.php'"
 - apiVersion: v1
   data:
     adminer.conf: |
@@ -38,6 +38,7 @@ objects:
       listen = /opt/app-root/var/run/adminer.sock
 
       listen.mode = 0660
+      catch_workers_output = yes
       ;access.log = /proc/self/fd/2
       ;access.format = "%R - %u %t \"%m %r%Q%q\" %s %f %{mili}d %{kilo}M %C%%"
 
@@ -45,10 +46,10 @@ objects:
       pm.max_children = 5
       pm.start_servers = 2
       pm.min_spare_servers = 1
-      pm.max_spare_servers = 3
+      pm.max_spare_servers = 2
       ;pm.process_idle_timeout = 10s;
       ;pm.max_requests = 500
-      php_admin_value[open_basedir] = "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp:/var/tmp:/run/php:/var/run/php"
+      php_admin_value[open_basedir] = "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp:/var/tmp:/run/php:/var/run/php"
       php_admin_value[session.save_path] = "/tmp/sessions"
       php_admin_value[soap.wsdl_cache_dir] = "/tmp"
       php_admin_value[sys_temp_dir] = "/tmp"
@@ -57,8 +58,8 @@ objects:
       php_admin_value[expose_php]= "0"
       php_admin_value[variables_order]="EGPCS"      
       php_value[display_errors] = "0"
-      php_value[upload_max_filesize] = "128M"
-      php_value[post_max_size] = "128M"
+      php_value[upload_max_filesize] = "2048M"
+      php_value[post_max_size] = "2048M"
       php_value[max_execution_time] = "120"
       php_value[max_input_time] = "120"
       php_value[max_input_vars] = "5000"
@@ -72,6 +73,7 @@ objects:
       listen = /opt/app-root/var/run/${APPLICATION_DOMAIN}-dev.sock
 
       listen.mode = 0660
+      catch_workers_output = yes
       ;access.log = /proc/self/fd/2
       ;access.format = "%R - %u %t \"%m %r%Q%q\" %s %f %{mili}d %{kilo}M %C%%"
 
@@ -82,7 +84,7 @@ objects:
       pm.max_spare_servers = 3
       ;pm.process_idle_timeout = 10s;
       ;pm.max_requests = 500
-      php_admin_value[open_basedir] = "/opt/app-root/src/${APPLICATION_DOMAIN}:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp/${APPLICATION_DOMAIN}:/var/tmp/${APPLICATION_DOMAIN}:/run/php:/var/run/php"
+      php_admin_value[open_basedir] = "/opt/app-root/src/${APPLICATION_DOMAIN}:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp/${APPLICATION_DOMAIN}:/var/tmp/${APPLICATION_DOMAIN}:/run/php:/var/run/php"
       php_admin_value[session.save_path] = "/tmp/${APPLICATION_DOMAIN}"
       php_admin_value[soap.wsdl_cache_dir] = "/tmp/${APPLICATION_DOMAIN}"
       php_admin_value[sys_temp_dir] = "/tmp/${APPLICATION_DOMAIN}"
@@ -108,8 +110,11 @@ objects:
       [${APPLICATION_DOMAIN}]
       listen = /opt/app-root/var/run/${APPLICATION_DOMAIN}.sock
 
+      catch_workers_output = yes
+
       listen.mode = 0660
       ;access.log = /proc/self/fd/2
+      ;slowlog = /proc/self/fd/2 
       ;access.format = "%R - %u %t \"%m %r%Q%q\" %s %f %{mili}d %{kilo}M %C%%"
 
       pm = dynamic
@@ -119,7 +124,7 @@ objects:
       pm.max_spare_servers = 5
       ;pm.process_idle_timeout = 10s;
       pm.max_requests = 25000
-      php_admin_value[open_basedir] = "/opt/app-root/src/${APPLICATION_DOMAIN}:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib:/usr/lib/php7:/usr/lib/php:/tmp/${APPLICATION_DOMAIN}:/var/tmp/${APPLICATION_DOMAIN}:/run/php:/var/run/php"
+      php_admin_value[open_basedir] = "/opt/app-root/src/${APPLICATION_DOMAIN}:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp/${APPLICATION_DOMAIN}:/var/tmp/${APPLICATION_DOMAIN}:/run/php:/var/run/php"
       php_admin_value[session.save_path] = "/tmp/${APPLICATION_DOMAIN}"
       php_admin_value[soap.wsdl_cache_dir] = "/tmp/${APPLICATION_DOMAIN}"
       php_admin_value[sys_temp_dir] = "/tmp/${APPLICATION_DOMAIN}"
@@ -175,8 +180,14 @@ objects:
                     }
 
                     limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
+                    limit_req_zone $binary_remote_addr zone=public:10m rate=10r/s;                    
                     server {
-                        listen 8080 default_server;
+                        listen 8082 default_server;
+                        listen 8080  ssl http2;
+                        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+                        ssl_certificate /var/run/nginx_ssl/${APPLICATION_DOMAIN}/tls.pem;
+                        ssl_certificate_key /var/run/nginx_ssl/${APPLICATION_DOMAIN}/tls.key;
+
                         server_name _;
 
                         access_log off;
@@ -212,19 +223,46 @@ objects:
                         }
 
                         location ~* /wp-content/uploads/\.(hh|php)$ {
+                            access_log /dev/stderr main;
                             return 404;
                         }
 
                         location /wp-admin/admin-ajax.php {
-                            limit_req zone=one burst=4 nodelay;
+                            limit_req zone=public burst=4 nodelay;
+                            if ( $args ~ "action=wpswmgr_serve" ) {
+                                return 420;
+                            }                               
                         }
                         location = /xmlrpc.php { return 404; }
                         location /wp-admin {
                             limit_req zone=one burst=4 nodelay;
+                            index index.php;
+                            set $no_cache 1;
                         }
                         location /wp-login.php {
                             limit_req zone=one burst=4 nodelay;                        
                         }
+                        location /wp-cron.php {
+                            allow 127.0.0.1;
+                            deny all;            
+                        }   
+                        error_page 420 = @cache_php;
+                        
+                        location @cache_php{
+
+                                fastcgi_cache microcache;
+                                fastcgi_cache_valid 404 30m;
+                                fastcgi_cache_valid 200 301 302 10m;
+                                fastcgi_cache_lock_timeout 6s;
+                                fastcgi_pass  unix:/opt/app-root/var/run/entomelloso.com.sock;
+                                fastcgi_index index.php;
+                                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                                fastcgi_param SCRIPT_NAME $fastcgi_script_name;
+                                fastcgi_param HTTPS $fe_https;
+                                fastcgi_param  PHP_VALUE   "auto_prepend_file=/opt/app-root/var/lib/yaxgui/external/header.php";
+
+                                include fastcgi_params;           
+                        }                                             
                         location @index.php {
                             try_files $uri =404;
 
@@ -245,6 +283,7 @@ objects:
                             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                             fastcgi_param SCRIPT_NAME $fastcgi_script_name;
                             fastcgi_param HTTPS $fe_https;
+                            #fastcgi_param  PHP_VALUE   "auto_prepend_file=/usr/local/share/php/yaxgui/external/header.php";
 
                             include fastcgi_params;
 
@@ -269,6 +308,7 @@ objects:
                             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                             fastcgi_param SCRIPT_NAME $fastcgi_script_name;
                             fastcgi_param HTTPS $fe_https;
+                            #fastcgi_param  PHP_VALUE   "auto_prepend_file=/usr/local/share/php/yaxgui/external/header.php";
 
                             include fastcgi_params;
 
@@ -306,11 +346,6 @@ objects:
                         # this prevents hidden files (beginning with a period) from being served
                         location ~ /\.          { access_log off; log_not_found off; deny all; }
 
-                        location / {
-                            #try_files /index.html /index.htm $uri $uri/ /index.php$is_args$args;
-                            try_files /index.html /index.htm $uri $uri/ @index_php;
-                        }
-
                         location ~* .(ogg|ogv|svg|svgz|eot|otf|woff|mp4|ttf|css|rss|atom|js|jpg|jpeg|gif|png|ico|zip|tgz|gz|rar|bz2|doc|xls|exe|ppt|tar|mid|midi|wav|bmp|rtf)$ {
                                 expires max;
                                 log_not_found off;
@@ -327,22 +362,58 @@ objects:
                           access_log off;
                         }
 
-                        location ~* /wp-content/uploads/\.(hh|php)$ {
-                            return 404;
+                        location ^~ /wp-content/uploads {
+                          location ~* /wp-content/uploads/\.(hh|php)$ {
+                              access_log /dev/stderr main;  
+                              return 404;
+                          }
+                          try_files $uri /../../${APPLICATION_DOMAIN}/public_html/$uri =404;
                         }
-
                         location /wp-admin/admin-ajax.php {
-                            limit_req zone=one burst=4 nodelay;
+                            limit_req zone=public burst=4 nodelay;
+                            #static files in admin_ajax
+                            if ( $args ~ "action=wpswmgr_serve" ) {
+                                return 418;
+                            }      
+                            return 419;                        
                         }
                         location = /xmlrpc.php { return 404; }
+                        location = /wp-admin/load-scripts.php$ { return 418; }
+                        location = /wp-admin/load-styles.php$ { return 418; }
+                        location = /wp-includes/js/tinymce/wp-tinymce.php$ { return 418; }
+                        location = /wp-content/plugins/td-composer/includes/wpeditor.php$ { return 418; }                        
                         location /wp-admin {
                             limit_req zone=one burst=4 nodelay;
+                            index index.php;
+                            set $no_cache 1;
+                            return 419;            
                         }
                         location /wp-login.php {
                             limit_req zone=one burst=4 nodelay;                        
+                            return 419;
                         }
-                        location @index.php {
-                            try_files $uri =404;
+
+                        error_page 418 = @cache_php;
+                        error_page 419 = @script_php;
+                        
+                        location @cache_php{
+                        
+                            #fastcgi_cache microcache;
+                            #fastcgi_cache_valid 404 30m;
+                            #fastcgi_cache_valid 200 301 302 10m;
+                            #fastcgi_cache_lock_timeout 6s;
+                            
+                            fastcgi_pass  unix:/opt/app-root/var/run/entomelloso.com.sock;
+                            fastcgi_index index.php;
+                            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                            fastcgi_param SCRIPT_NAME $fastcgi_script_name;
+                            fastcgi_param HTTPS $fe_https;
+
+                            include fastcgi_params;           
+                                
+                        }                        
+                        location @index_php {
+                            try_files /index.php =404;
 
                             ## Naxsi rules
                             #include fastcgi_naxsi_params
@@ -361,11 +432,12 @@ objects:
                             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                             fastcgi_param SCRIPT_NAME $fastcgi_script_name;
                             fastcgi_param HTTPS $fe_https;
+                            fastcgi_param  PHP_VALUE   "auto_prepend_file=/usr/local/share/php/yaxgui/external/header.php";
 
                             include fastcgi_params;
 
                         }                                             
-                        location ~ \.(hh|php)$ {
+                        location @script_php {
                             try_files $uri =404;
 
                             ## Naxsi rules
@@ -385,6 +457,7 @@ objects:
                             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                             fastcgi_param SCRIPT_NAME $fastcgi_script_name;
                             fastcgi_param HTTPS $fe_https;
+                            fastcgi_param  PHP_VALUE   "auto_prepend_file=/usr/local/share/php/yaxgui/external/header.php";
 
                             include fastcgi_params;
 
@@ -404,6 +477,10 @@ objects:
                             send_timeout 600;                          
 
                         }
+                        location / {
+                            location ~ \.(hh|php)$ { return 419; }
+                            try_files /index.html /index.htm $uri @index_php;    
+                        }                        
 
                     }
   kind: ConfigMap
@@ -472,7 +549,7 @@ objects:
                             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                             fastcgi_param SCRIPT_NAME $fastcgi_script_name;
                             fastcgi_param HTTPS $fe_https;
-
+                            
                             include fastcgi_params;
 
                             # Fascgi conection paramas
@@ -594,7 +671,25 @@ objects:
       targetPort: 60010
     selector:
       name: ${NAME}
-    type: ClusterIP         
+    type: ClusterIP
+- apiVersion: certmanager.k8s.io/v1alpha1
+  kind: Certificate
+  metadata:
+    name: ${NAME}
+  spec:
+    secretName: ${NAME}-tls
+    issuerRef:
+      name: 
+      kind: ClusterIssuer
+    commonName: APPLICATION_DOMAIN
+    dnsNames:
+    - www.${APPLICATION_DOMAIN}
+    acme:
+      config:
+        - http01: {}
+          domains:
+          - ${APPLICATION_DOMAIN}
+          - www.${APPLICATION_DOMAIN}       
 - apiVersion: v1
   kind: Route
   metadata:
@@ -719,7 +814,7 @@ objects:
             name: "tmp"
         - env:
           - name: ADDRESS
-            value: "${APPLICATION_DOMAIN}"
+            value: "${FTP_DOMAIN}"
           - name: FTPD_PORT
             value: "10020"
           - name: FTP_PORT
@@ -972,6 +1067,13 @@ parameters:
   displayName: Application Hostname
   name: APPLICATION_DOMAIN
   required: true
+- description: The exposed hostname that will route to the FTP service.
+  displayName: FTP Hostname
+  name: FTP_DOMAIN
+  required: true  
+- description: Aditional hostname that will route to the PHP service, no routes are created for this domains, only to create certificates
+  displayName: Aditional Application Hostname
+  name: APPLICATION_ADDITIONAL_DOMAIN
 - description: Github trigger secret.  A difficult to guess string encoded as part
     of the webhook URL.  Not encrypted.
   displayName: GitHub Webhook Secret
