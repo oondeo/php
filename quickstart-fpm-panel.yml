@@ -1,9 +1,11 @@
 ---
+# Añadir la direccion ip al servicio externalIPs: [1.1.1.1]
+# replace ftp by https://extplorer.net/
 apiVersion: v1
 kind: Template
 labels:
-  app: php-persistent
-  template: php-persistent
+  app: php-webpanel
+  template: php-webpanel
 message: |-
   The following service(s) have been created in your project: ${NAME},
   For more information about using this template, including OpenShift considerations, see https://github.com/sclorg/php-ex/blob/master/README.md.
@@ -12,7 +14,7 @@ metadata:
     description: An example PHP application . For more information
       about using this template, including OpenShift considerations, see https://github.com/sclorg/php-ex/blob/master/README.md.
     iconClass: icon-php
-    openshift.io/display-name: PHP+Nginx
+    openshift.io/display-name: PHP WEBPANEL
     openshift.io/documentation-url: https://github.com/oondeo/docker-php
     openshift.io/long-description: This template defines resources needed to develop
       a PHP application, including a build configuration, application deployment
@@ -29,7 +31,7 @@ objects:
   metadata:
     name: "${NAME}-crontab"
   data:
-    ${NAME}: "*/10 * * * * default curl -k -H 'Host: ${APPLICATION_DOMAIN}' 'http://127.0.0.1:8082/wp-cron.php'"
+    ${NAME}: "*/10 * * * * default curl -k -H 'Host: ${APPLICATION_DOMAIN}' 'https://127.0.0.1:8082/wp-cron.php'"
 - apiVersion: v1
   data:
     adminer.conf: |
@@ -48,7 +50,7 @@ objects:
       pm.max_spare_servers = 2
       ;pm.process_idle_timeout = 10s;
       ;pm.max_requests = 500
-      php_admin_value[open_basedir] = "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp:/var/tmp:/run/php:/var/run/php"
+      php_admin_value[open_basedir] = "/opt/app-root/src:/opt/app-root/var/lib:/usr/share/php:/usr/local/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp:/var/tmp:/run/php:/var/run/php"
       php_admin_value[session.save_path] = "/tmp/sessions"
       php_admin_value[soap.wsdl_cache_dir] = "/tmp"
       php_admin_value[sys_temp_dir] = "/tmp"
@@ -62,12 +64,14 @@ objects:
       php_value[max_execution_time] = "120"
       php_value[max_input_time] = "120"
       php_value[max_input_vars] = "5000"
-      php_value[opcache.enable] = "1"
       php_value[opcache.revalidate_freq] = "200"
       env[TMP] = "/tmp"
       env[TMPDIR] = "/tmp"
       env[TEMP] = "/tmp"  
     ${APPLICATION_DOMAIN}-dev.conf: |
+      ; Start a new pool named 'www'.
+      ; the variable $pool can be used in any directive and will be replaced by the
+      ; pool name ('www' here)    
       [${APPLICATION_DOMAIN}-dev]
       listen = /opt/app-root/var/run/${APPLICATION_DOMAIN}-dev.sock
 
@@ -83,11 +87,11 @@ objects:
       pm.max_spare_servers = 3
       ;pm.process_idle_timeout = 10s;
       ;pm.max_requests = 500
-      php_admin_value[open_basedir] = "/opt/app-root/src/${APPLICATION_DOMAIN}:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp/${APPLICATION_DOMAIN}:/var/tmp/${APPLICATION_DOMAIN}:/run/php:/var/run/php"
-      php_admin_value[session.save_path] = "/tmp/${APPLICATION_DOMAIN}"
-      php_admin_value[soap.wsdl_cache_dir] = "/tmp/${APPLICATION_DOMAIN}"
-      php_admin_value[sys_temp_dir] = "/tmp/${APPLICATION_DOMAIN}"
-      php_admin_value[upload_tmp_dir] = "/var/tmp/${APPLICATION_DOMAIN}"
+      php_admin_value[open_basedir] = "/opt/app-root/src/${APPLICATION_DOMAIN}-dev:/opt/app-root/var/lib:/usr/share/php:/usr/local/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp/${APPLICATION_DOMAIN}-dev:/var/tmp/${APPLICATION_DOMAIN}-dev:/run/php:/var/run/php"
+      php_admin_value[session.save_path] = "/tmp/${APPLICATION_DOMAIN}-dev"
+      php_admin_value[soap.wsdl_cache_dir]= "/tmp/${APPLICATION_DOMAIN}-dev"
+      php_admin_value[sys_temp_dir] = "/tmp/${APPLICATION_DOMAIN}-dev"
+      php_admin_value[upload_tmp_dir] = "/tmp/${APPLICATION_DOMAIN}-dev"
       php_admin_value[memory_limit]="192M"
       php_admin_value[expose_php]= "0"
       php_admin_value[variables_order]="EGPCS"      
@@ -97,11 +101,10 @@ objects:
       php_value[max_execution_time] = "60"
       php_value[max_input_time] = "60"
       php_value[max_input_vars] = "5000"
-      php_value[opcache.enable] = "1"
       php_value[opcache.revalidate_freq] = "20"
-      env[TMP] = "/tmp/${APPLICATION_DOMAIN}"
-      env[TMPDIR] = "/tmp/${APPLICATION_DOMAIN}"
-      env[TEMP] = "/tmp/${APPLICATION_DOMAIN}"
+      env[TMP] = "/tmp/${APPLICATION_DOMAIN}-dev"
+      env[TMPDIR] = "/tmp/${APPLICATION_DOMAIN}-dev"
+      env[TEMP] = "/tmp/${APPLICATION_DOMAIN}-dev"
     ${APPLICATION_DOMAIN}.conf: |
       ; Start a new pool named 'www'.
       ; the variable $pool can be used in any directive and will be replaced by the
@@ -123,7 +126,7 @@ objects:
       pm.max_spare_servers = 5
       ;pm.process_idle_timeout = 10s;
       pm.max_requests = 25000
-      php_admin_value[open_basedir] = "/opt/app-root/src/${APPLICATION_DOMAIN}:/opt/app-root/var/lib:/usr/share/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp/${APPLICATION_DOMAIN}:/var/tmp/${APPLICATION_DOMAIN}:/run/php:/var/run/php"
+      php_admin_value[open_basedir] = "/opt/app-root/src/${APPLICATION_DOMAIN}:/opt/app-root/var/lib:/usr/share/php:/usr/local/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp/${APPLICATION_DOMAIN}:/var/tmp/${APPLICATION_DOMAIN}:/run/php:/var/run/php"
       php_admin_value[session.save_path] = "/tmp/${APPLICATION_DOMAIN}"
       php_admin_value[soap.wsdl_cache_dir] = "/tmp/${APPLICATION_DOMAIN}"
       php_admin_value[sys_temp_dir] = "/tmp/${APPLICATION_DOMAIN}"
@@ -137,7 +140,6 @@ objects:
       php_value[max_execution_time] = "60"
       php_value[max_input_time] = "60"
       php_value[max_input_vars] = "5000"
-      php_value[opcache.enable] = "1"
       php_value[opcache.revalidate_freq] = "20"
       env[TMP] = "/tmp/${APPLICATION_DOMAIN}"
       env[TMPDIR] = "/tmp/${APPLICATION_DOMAIN}"
@@ -147,7 +149,7 @@ objects:
     name: "${NAME}-php"
 - apiVersion: v1
   data:
-    ${APPLICATION_DOMAIN}.conf: |
+    00-common.conf: |
                     #include /etc/nginx/conection_params;
                     include /etc/nginx/cache_params;
                     include /etc/nginx/gzip_params;
@@ -178,16 +180,30 @@ objects:
                       '' close;
                     }
 
-                    limit_req_zone $binary_remote_addr zone=one:10m rate=10r/s;
-                    limit_req_zone $binary_remote_addr zone=public:10m rate=10r/s;                    
+                    limit_req_zone $binary_remote_addr zone=one:1m rate=10r/s;
+                    limit_req_zone $binary_remote_addr zone=public:1m rate=20r/s;        
+    ${APPLICATION_DOMAIN}.conf: |
+                
                     server {
-                        listen 8082 default_server;
-                        listen 8080  ssl http2;
+                        listen 8080 default_server;
+                        location ^~ /.well-known/acme-challenge/ {
+                                        access_log off;
+                                        log_not_found off;
+                                        root /var/lib/letsencrypt;
+                                        autoindex off;
+                                        index index.html;
+                                        try_files $uri $uri/ =404;
+                        }                           
+                        return 301 https://$http_host$request_uri;
+                    }
+                    server {
+                        listen 8082  ssl http2 default_server;
                         ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
-                        ssl_certificate /var/run/nginx_ssl/${APPLICATION_DOMAIN}/tls.pem;
-                        ssl_certificate_key /var/run/nginx_ssl/${APPLICATION_DOMAIN}/tls.key;
+                        ssl_certificate /opt/app-root/var/nginx/ssl/${APPLICATION_DOMAIN}/tls.pem;
+                        ssl_certificate_key /opt/app-root/var/nginx/ssl/${APPLICATION_DOMAIN}/tls.key;
 
                         server_name _;
+    
 
                         access_log off;
 
@@ -195,14 +211,36 @@ objects:
                         include server_cache_params;
 
                         root /opt/app-root/src/${APPLICATION_DOMAIN}/public_html;
-                        index index.html index.htm index.php;
+                        #index index.html index.htm index.php;
 
+                        location ^~ /.well-known/acme-challenge/ {
+                                        access_log off;
+                                        log_not_found off;
+                                        root /var/lib/letsencrypt;
+                                        autoindex off;
+                                        index index.html;
+                                        try_files $uri $uri/ =404;
+                        }                        
                         # this prevents hidden files (beginning with a period) from being served
                         location ~ /\.          { access_log off; log_not_found off; deny all; }
+                        location = /xmlrpc.php { return 404; }
+                        location ~* /wp-content/uploads/\.(hh|php)$ {
+                            access_log /dev/stderr main;
+                            return 404;
+                        }
+
+                        #if ($query_string != "") {
+                        #    set $no_cache 1;
+                        #}
+
+                        if ($http_cookie ~* "(comment_author|wp\-postpass|w3tc_logged_out|wordpress_logged_in|wptouch_switch_toggle|w3tc_preview)") {
+                            set $no_cache 1;
+                        }                        
+                        include /opt/app-root/src/${APPLICATION_DOMAIN}/nginx.conf;
 
                         location / {
                             #try_files /index.html /index.htm $uri $uri/ /index.php$is_args$args;
-                            try_files /index.html /index.htm $uri $uri/ @index_php;
+                            try_files /index.html /index.htm $uri $uri/ /index.php$is_args$args;
                         }
 
                         location ~* .(ogg|ogv|svg|svgz|eot|otf|woff|mp4|ttf|css|rss|atom|js|jpg|jpeg|gif|png|ico|zip|tgz|gz|rar|bz2|doc|xls|exe|ppt|tar|mid|midi|wav|bmp|rtf)$ {
@@ -220,21 +258,24 @@ objects:
                           log_not_found off;
                           access_log off;
                         }
+                                
 
-                        location ~* /wp-content/uploads/\.(hh|php)$ {
-                            access_log /dev/stderr main;
-                            return 404;
-                        }
-
+                        location = /wp-admin/load-scripts.php$ { return 420; }
+                        location = /wp-admin/load-styles.php$ { return 420; }
+                        location = /wp-includes/js/tinymce/wp-tinymce.php$ { return 420; }
+                        location = /wp-content/plugins/td-composer/includes/wpeditor.php$ { return 420; }
                         location /wp-admin/admin-ajax.php {
-                            limit_req zone=public burst=4 nodelay;
+                            limit_req zone=public burst=8 nodelay;
                             if ( $args ~ "action=wpswmgr_serve" ) {
-                                return 420;
-                            }                               
+                                #cache
+                                # return 420;
+                                #block
+                                return 403; 
+                            }                         
                         }
-                        location = /xmlrpc.php { return 404; }
+
                         location /wp-admin {
-                            limit_req zone=one burst=4 nodelay;
+                            limit_req zone=one burst=8 nodelay;
                             index index.php;
                             set $no_cache 1;
                         }
@@ -245,25 +286,25 @@ objects:
                             allow 127.0.0.1;
                             deny all;            
                         }   
-                        error_page 420 = @cache_php;
-                        
+                        error_page 420 =200 @cache_php;
+
                         location @cache_php{
 
                                 fastcgi_cache microcache;
                                 fastcgi_cache_valid 404 30m;
                                 fastcgi_cache_valid 200 301 302 10m;
                                 fastcgi_cache_lock_timeout 6s;
-                                fastcgi_pass  unix:/opt/app-root/var/run/entomelloso.com.sock;
+                                fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}.sock;
                                 fastcgi_index index.php;
                                 fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                                 fastcgi_param SCRIPT_NAME $fastcgi_script_name;
                                 fastcgi_param HTTPS $fe_https;
-                                fastcgi_param  PHP_VALUE   "auto_prepend_file=/opt/app-root/var/lib/yaxgui/external/header.php";
+                                # fastcgi_param  PHP_VALUE   "auto_prepend_file=/opt/app-root/var/lib/yaxgui/external/header.php";
 
                                 include fastcgi_params;           
                         }                                             
-                        location @index.php {
-                            try_files $uri =404;
+                        location = /index.php {
+                            # try_files $uri =404;
 
                             ## Naxsi rules
                             #include fastcgi_naxsi_params
@@ -297,7 +338,7 @@ objects:
                             #{{NGINX_CACHE}}
 
 
-                            include fastcgi_cache_params;
+                            # include fastcgi_cache_params;
 
                             fastcgi_pass_header 'Accept-Encoding ""';
 
@@ -313,9 +354,10 @@ objects:
 
                             # Fascgi conection paramas
                             #X-Accel-Buffering
-                            fastcgi_buffer_size 64k;
-                            fastcgi_buffers 8 16k;
-                            fastcgi_busy_buffers_size 64k;
+                            fastcgi_buffering off;
+                            #fastcgi_buffer_size 64k;
+                            #fastcgi_buffers 8 16k;
+                            #fastcgi_busy_buffers_size 64k;
                             fastcgi_read_timeout 600;
                             fastcgi_send_timeout 600;
                             fastcgi_connect_timeout 600;
@@ -369,51 +411,44 @@ objects:
                           try_files $uri /../../${APPLICATION_DOMAIN}/public_html/$uri =404;
                         }
                         location /wp-admin/admin-ajax.php {
-                            limit_req zone=public burst=4 nodelay;
-                            #static files in admin_ajax
+                            limit_req zone=public burst=8 nodelay;
                             if ( $args ~ "action=wpswmgr_serve" ) {
-                                return 418;
-                            }      
-                            return 419;                        
+                                return 420;
+                            }                         
                         }
                         location = /xmlrpc.php { return 404; }
-                        location = /wp-admin/load-scripts.php$ { return 418; }
-                        location = /wp-admin/load-styles.php$ { return 418; }
-                        location = /wp-includes/js/tinymce/wp-tinymce.php$ { return 418; }
-                        location = /wp-content/plugins/td-composer/includes/wpeditor.php$ { return 418; }                        
                         location /wp-admin {
-                            limit_req zone=one burst=4 nodelay;
-                            set $no_cache 1;
+                            limit_req zone=one burst=8 nodelay;
                             index index.php;
-                            location ~ \.(hh|php)$ { return 419; }   
-                            index index.php;      
+                            set $no_cache 1;
                         }
                         location /wp-login.php {
                             limit_req zone=one burst=4 nodelay;                        
-                            return 419;
                         }
+                        location /wp-cron.php {
+                            allow 127.0.0.1;
+                            deny all;            
+                        }   
+                        error_page 420 =200 @cache_php;
+                        error_page 420 =200 @cache_php;
 
-                        error_page 418 = @cache_php;
-                        error_page 419 = @script_php;
-                        
                         location @cache_php{
-                        
-                            #fastcgi_cache microcache;
-                            #fastcgi_cache_valid 404 30m;
-                            #fastcgi_cache_valid 200 301 302 10m;
-                            #fastcgi_cache_lock_timeout 6s;
-                            
-                            fastcgi_pass  unix:/opt/app-root/var/run/entomelloso.com.sock;
-                            fastcgi_index index.php;
-                            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-                            fastcgi_param SCRIPT_NAME $fastcgi_script_name;
-                            fastcgi_param HTTPS $fe_https;
 
-                            include fastcgi_params;           
-                                
-                        }                        
-                        location @index_php {
-                            try_files /index.php =404;
+                                fastcgi_cache microcache;
+                                fastcgi_cache_valid 404 30m;
+                                fastcgi_cache_valid 200 301 302 10m;
+                                fastcgi_cache_lock_timeout 6s;
+                                fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}.sock;
+                                fastcgi_index index.php;
+                                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                                fastcgi_param SCRIPT_NAME $fastcgi_script_name;
+                                fastcgi_param HTTPS $fe_https;
+                                # fastcgi_param  PHP_VALUE   "auto_prepend_file=/opt/app-root/var/lib/yaxgui/external/header.php";
+
+                                include fastcgi_params;           
+                        }                                             
+                        location = /index.php {
+                            # try_files $uri =404;
 
                             ## Naxsi rules
                             #include fastcgi_naxsi_params
@@ -427,17 +462,17 @@ objects:
                             fastcgi_pass_header 'Accept-Encoding ""';
 
                             #fastcgi_pass 127.0.0.1:9000;
-                            fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}-dev.sock;
+                            fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}.sock;
                             fastcgi_index index.php;
                             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                             fastcgi_param SCRIPT_NAME $fastcgi_script_name;
                             fastcgi_param HTTPS $fe_https;
-                            fastcgi_param  PHP_VALUE   "auto_prepend_file=/usr/local/share/php/yaxgui/external/header.php";
+                            #fastcgi_param  PHP_VALUE   "auto_prepend_file=/usr/local/share/php/yaxgui/external/header.php";
 
                             include fastcgi_params;
 
                         }                                             
-                        location @script_php {
+                        location ~ \.(hh|php)$ {
                             try_files $uri =404;
 
                             ## Naxsi rules
@@ -447,17 +482,17 @@ objects:
                             #{{NGINX_CACHE}}
 
 
-                            include fastcgi_cache_params;
+                            # include fastcgi_cache_params;
 
                             fastcgi_pass_header 'Accept-Encoding ""';
 
                             #fastcgi_pass 127.0.0.1:9000;
-                            fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}-dev.sock;
+                            fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}.sock;
                             fastcgi_index index.php;
                             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                             fastcgi_param SCRIPT_NAME $fastcgi_script_name;
                             fastcgi_param HTTPS $fe_https;
-                            fastcgi_param  PHP_VALUE   "auto_prepend_file=/usr/local/share/php/yaxgui/external/header.php";
+                            #fastcgi_param  PHP_VALUE   "auto_prepend_file=/usr/local/share/php/yaxgui/external/header.php";
 
                             include fastcgi_params;
 
@@ -477,10 +512,6 @@ objects:
                             send_timeout 600;                          
 
                         }
-                        location / {
-                            location ~ \.(hh|php)$ { return 419; }
-                            try_files /index.html /index.htm $uri @index_php;    
-                        }                        
 
                     }
   kind: ConfigMap
@@ -488,7 +519,7 @@ objects:
     name: ${NAME}-nginx
 - apiVersion: v1
   data:
-    ${APPLICATION_DOMAIN}-dev.conf: |
+    00-common.conf: |  
                     #include /etc/nginx/conection_params;
                     include /etc/nginx/cache_params;
                     include /etc/nginx/gzip_params;
@@ -518,20 +549,81 @@ objects:
                       default upgrade;
                       '' close;
                     }
-
+    ${APPLICATION_DOMAIN}-dev.conf: |
                     server {
 
                       listen 1080;
                       server_name _;  
+                      access_log /dev/stderr main;                      
                       location / {
-                        set $rewrite_port "8081";
-                        set $rewrite_host "127.0.0.1";
-                        set $domain_prod "${APPLICATION_DOMAIN}";                                       
-                        include /etc/nginx/rewrite_server;
+
+                        # replace request
+                        #header_filter_by_lua
+                        access_by_lua_block{
+
+                          if ngx.req.get_method() == "POST" then   
+                              ngx.req.read_body()
+                              local data = ngx.req.get_body_data() 
+                              if data then
+                                local newargs, n, err = ngx.re.gsub(data, "$host", "ngx.var.domain_prod") 
+                                ngx.req.set_body_data(newargs)
+                              end
+                              local file = ngx.req.get_body_file()
+                              if file then                                                                                         
+                                local newargs, n, err = ngx.re.gsub(file, "$host", "ngx.var.domain_prod")
+                                ngx.req.set_body_data(newargs)
+                              end 
+                          else
+                            local args = ngx.req.get_uri_args()
+                            local newargs = {}
+                            for key, val in pairs(args) do
+                              if type(val) == "string" then
+                                local newval, n , err =  ngx.re.gsub(val, "$host", "ngx.var.domain_prod")
+                                newargs[key]=newval
+                              else
+                                newargs[key]=val
+                              end
+                            end
+                                  ngx.req.set_uri_args(newargs)
+                          end
+
+                        }
+
+                        #   #rewrite reponse
+                        #     body_filter_by_lua_block{
+                        #local resp_body = string.sub(ngx.arg[1], 1, 1000)  -- arg[1] contains a chunk of response content
+                        #ngx.ctx.buffered = string.sub((ngx.ctx.buffered or "") .. resp_body, 1, 1000)
+                        #if ngx.arg[2] and ngx.req.get_method() == "POST" then  -- arg[2] is true if this is the last chunk
+                        #  ngx.log(ngx.STDERR,ngx.ctx.buffered)
+                        #end  
+                        #   }
+
+                        #set $rewrite_server 127.0.0.1;
+                        #set $rewrite_server_port 8083;
+                        proxy_pass http://127.0.0.1:8081;
+                        
+                        proxy_set_header Host ${APPLICATION_DOMAIN}; 
+                        proxy_set_header Forwarded  "for=$http_x_forwarded_for;host=${APPLICATION_DOMAIN};port=$http_x_forwarded_port;proto=$http_x_forwarded_proto"; 
+                        proxy_set_header X-Forwarded-Host  ${APPLICATION_DOMAIN}; 
+                        add_header Access-Control-Allow-Origin "*";
+
+                        proxy_redirect                  http://${APPLICATION_DOMAIN}/ $http_x_forwarded_proto://$http_x_forwarded_host:$http_x_forwarded_port/;
+                        proxy_redirect                  https://${APPLICATION_DOMAIN}/ $http_x_forwarded_proto://$http_x_forwarded_host:$http_x_forwarded_port/; 
+                        proxy_redirect                  http://${APPLICATION_DOMAIN}:8081/ $http_x_forwarded_proto://$http_x_forwarded_host:$http_x_forwarded_port/;
+                        proxy_redirect                  https://${APPLICATION_DOMAIN}:8081/ $http_x_forwarded_proto://$http_x_forwarded_host:$http_x_forwarded_port/;          
+                    
+
+                      
+                        #rewrite response
+                        proxy_cookie_domain             "${APPLICATION_DOMAIN}" "$host";
+                        sub_filter_once off;
+                        sub_filter_types *;                                                         
+                        sub_filter "${APPLICATION_DOMAIN}" "$host" ;
                       }
                       location = /adminer.php {
                             try_files $uri =404;
-
+                            
+                            root /usr/local/php;
                             ## Naxsi rules
                             #include fastcgi_naxsi_params
 
@@ -567,6 +659,8 @@ objects:
                             client_body_buffer_size     4M;  
                             send_timeout 600;                                                       
                       }
+
+                    }
   kind: ConfigMap
   metadata:
     name: ${NAME}-nginx-dev
@@ -589,8 +683,14 @@ objects:
   spec:
     ports:
     - name: web
-      port: 8080
+      port: 80
       targetPort: 8080
+    - name: web-dev
+      port: 8081
+      targetPort: 8081
+    - name: web-ssl
+      port: 443
+      targetPort: 8082
     selector:
       name: "${NAME}"
 - apiVersion: v1
@@ -695,6 +795,11 @@ objects:
     name: "${NAME}"
   spec:
     host: "${APPLICATION_DOMAIN}"
+    tls:
+      insecureEdgeTerminationPolicy: Redirect
+      termination: passthrough    
+    port:
+      targetPort: web-ssl    
     to:
       kind: Service
       name: "${NAME}"
@@ -725,6 +830,38 @@ objects:
           name: "${NAME}"
         name: "${NAME}"
       spec:
+        initContainers:
+        - image: certbot/certbot
+          command:  
+          # openssl req -x509 -out localhost.crt -keyout localhost.key \
+          #   -newkey rsa:2048 -nodes -sha256 \
+          #   -subj '/CN=localhost' -extensions EXT -config <( \
+          #    printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")          
+          - /bin/sh
+          - "-c"
+          - |
+            cd /tmp
+            printf "[dn]\nCN=${APPLICATION_DOMAIN}\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:${APPLICATION_DOMAIN}\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth" > ssl.conf
+            openssl req -x509 -out cert1.pem -keyout privkey1.pem -newkey rsa:2048 -nodes -sha256 -subj '/CN=${APPLICATION_DOMAIN}' -extensions EXT -config ssl.conf
+            mkdir -p /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN} /etc/letsencrypt/live/${APPLICATION_DOMAIN}
+            echo "" > /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/chain1.pem
+            cp cert1.pem /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/cert1.pem
+            cp cert1.pem /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/fullchain1.pem
+            cp privkey1.pem /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/privkey1.pem
+            ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/cert1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/cert.pem
+            ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/chain1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/chain.pem
+            ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/fullchain1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/fullchain.pem
+            ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/privkey1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/privkey.pem
+            exit 0
+          name: init-certbot
+          volumeMounts:
+          - mountPath: "/opt/app-root/etc/conf.d"
+            name: "nginx-config"          
+          - mountPath: "/var/www"
+            name: "le-www"
+          - mountPath: "/etc/letsencrypt"
+            name: "${NAME}-data"  
+            subPath: letsencrypt        
         containers:
         - env:
           - name: DATABASE_SERVICE_NAME
@@ -753,13 +890,16 @@ objects:
           - mountPath: "/opt/app-root/etc/php-fpm.d"
             name: "php-config"
           - mountPath: "/opt/app-root/src"
-            name: "${NAME}-data"                    
+            name: "${NAME}-data"
+            subPath: web                    
           resources:
             limits:
               memory: "${MEMORY_LIMIT}"
         - env:
           - name: DOMAIN_PROD
             value: "${APPLICATION_DOMAIN}"
+          - name: NGINX_SSL_PATH
+            value: "/etc/letsencrypt/live"
           image: "docker.io/oondeo/nginx"  
           name: "nginx"      
           livenessProbe:
@@ -770,11 +910,18 @@ objects:
           ports:
           - containerPort: 8080
           - containerPort: 8081
+          - containerPort: 8082          
           volumeMounts:
+          - mountPath: "/etc/letsencrypt"
+            name: "${NAME}-data"  
+            subPath: letsencrypt            
+          - mountPath: "/var/lib/letsencrypt"
+            name: "le-www"             
           - mountPath: "/opt/app-root/etc/conf.d"
             name: "nginx-config"          
           - mountPath: "/opt/app-root/src"
             name: "${NAME}-data"
+            subPath: web
           - mountPath: "/opt/app-root/var/run"
             name: "run" 
           - mountPath: "/tmp"
@@ -783,25 +930,46 @@ objects:
           imagePullPolicy: IfNotPresent 
           name: "crond"      
           volumeMounts:
-          - mountPath: "/var/run/nginx_ssl/${APPLICATION_DOMAIN}"
-            name: "${NAME}-tls"
           - mountPath: "/opt/app-root/etc"
             name: "crontab"          
           - mountPath: "/opt/app-root/src"
             name: "${NAME}-data"
+            subPath: web
           - mountPath: "/tmp"
-            name: "tmp"            
+            name: "tmp"   
+        - image: certbot/certbot
+          command:  
+          # openssl req -x509 -out localhost.crt -keyout localhost.key \
+          #   -newkey rsa:2048 -nodes -sha256 \
+          #   -subj '/CN=localhost' -extensions EXT -config <( \
+          #    printf "[dn]\nCN=localhost\n[req]\ndistinguished_name = dn\n[EXT]\nsubjectAltName=DNS:localhost\nkeyUsage=digitalSignature\nextendedKeyUsage=serverAuth")
+          # rm -rf /etc/letsencrypt/live/${APPLICATION_DOMAIN}
+          #certbot certonly --logs-dir /tmp/logs --work-dir /tmp/letsencrypt --webroot -w /var/www -d www.example.com -d example.com -w /var/www/other -d other.example.net -d another.other.example.net
+          - /bin/sh
+          - "-c"
+          - |
+            #set -ex          
+            #["sh", "-c", "tail -f /dev/null"]
+            ln -s /dev/stdout /tmp/letsencrypt.log
+            mkdir /tmp/letsencrypt
+            while true
+            do 
+                sleep 600
+                certbot renew --logs-dir /tmp/logs --work-dir /tmp/letsencrypt
+            done
+          name: certbot
+          volumeMounts:
+            - mountPath: "/var/www"
+              name: "le-www"
+            - mountPath: "/etc/letsencrypt"
+              name: "${NAME}-data"  
+              subPath: letsencrypt 
         - env:
           - name: DOMAIN_PROD
             value: "${APPLICATION_DOMAIN}"
           image: "docker.io/oondeo/nginx"
           imagePullPolicy: IfNotPresent 
           name: "nginx-dev"      
-          livenessProbe:
-            initialDelaySeconds: 30
-            tcpSocket:
-              port: 1080
-            timeoutSeconds: 10
           ports:
           - containerPort: 1080        
           volumeMounts:
@@ -809,6 +977,7 @@ objects:
             name: "nginx-dev-config"          
           - mountPath: "/opt/app-root/src"
             name: "${NAME}-data"
+            subPath: web
           - mountPath: "/opt/app-root/var/run"
             name: "run" 
           - mountPath: "/tmp"
@@ -834,12 +1003,15 @@ objects:
           volumeMounts:       
           - mountPath: "/opt/app-root/src"
             name: "${NAME}-data"
+            subPath: web
           - mountPath: "/tmp"
             name: "tmp"       
           - mountPath: "/opt/app-root/etc"
             name: ftp-users
             readOnly: true                               
         volumes:
+        - name: "le-www"
+          emptyDir: {}                     
         - name: "run"
           emptyDir: {}
         - name: "tmp"
@@ -866,9 +1038,9 @@ objects:
         - name: "${NAME}-data"
           persistentVolumeClaim:
             claimName: "${NAME}"
-        - name: "${NAME}-tls"
-          secret: 
-            secretName: "${NAME}-tls"
+        # - name: "${NAME}-tls"
+        #   secret: 
+        #     secretName: "${NAME}-tls"
     triggers:
     - imageChangeParams:
         automatic: true
@@ -899,7 +1071,7 @@ parameters:
   displayName: Name
   name: NAME
   required: true
-  value: php-persistent
+  value: php-panel
 - description: The OpenShift Namespace where the ImageStream resides.
   displayName: Namespace
   name: NAMESPACE
@@ -914,7 +1086,7 @@ parameters:
   displayName: Memory Limit
   name: MEMORY_LIMIT
   required: true
-  value: 512Mi
+  value: 1024Mi
 - description: Volume space available for data, e.g. 512Mi, 2Gi
   displayName: Volume Capacity
   name: VOLUME_CAPACITY

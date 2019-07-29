@@ -2,17 +2,18 @@
 apiVersion: v1
 kind: Template
 labels:
-  app: php-persistent
-  template: php-persistent
+  app: php-mysql-persistent
+  template: php-mysql-persistent
 message: |-
-  The following service(s) have been created in your project: ${NAME},
+  The following service(s) have been created in your project: ${NAME}, ${DATABASE_SERVICE_NAME}.
+
   For more information about using this template, including OpenShift considerations, see https://github.com/sclorg/php-ex/blob/master/README.md.
 metadata:
   annotations:
-    description: An example PHP application . For more information
+    description: An example PHP application with a MySQL database. For more information
       about using this template, including OpenShift considerations, see https://github.com/sclorg/php-ex/blob/master/README.md.
     iconClass: icon-php
-    openshift.io/display-name: PHP+Nginx
+    openshift.io/display-name: PHP + MySQL
     openshift.io/documentation-url: https://github.com/oondeo/docker-php
     openshift.io/long-description: This template defines resources needed to develop
       a PHP application, including a build configuration, application deployment
@@ -21,7 +22,7 @@ metadata:
     openshift.io/support-url: https://oondeo.es
     tags: quickstart,php
     template.openshift.io/bindable: 'false'
-  name: php-persistent
+  name: php-mysql-persistent
   namespace: openshift
 objects:
 - apiVersion: v1
@@ -583,8 +584,8 @@ objects:
   metadata:
     annotations:
       description: Exposes and load balances the application pods
-      # service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
-      #   "kind": "Service"}]'
+      service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
+        "kind": "Service"}]'
     name: "${NAME}"
   spec:
     ports:
@@ -598,8 +599,8 @@ objects:
   metadata:
     annotations:
       description: Exposes and load balances the application pods
-      # service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
-      #   "kind": "Service"}]'
+      service.alpha.openshift.io/dependencies: '[{"name": "${DATABASE_SERVICE_NAME}",
+        "kind": "Service"}]'
     name: "${NAME}-dev"
   spec:
     ports:
@@ -613,6 +614,7 @@ objects:
   metadata:
     annotations:
       description: Exposes and load balances the application pods
+      service.alpha.openshift.io/dependencies: '[{"name": "NAME", "kind": "Service"}]'
     name: ${NAME}-ftp
   spec:
     ports:
@@ -671,24 +673,24 @@ objects:
     selector:
       name: ${NAME}
     type: ClusterIP
-# - apiVersion: certmanager.k8s.io/v1alpha1
-#   kind: Certificate
-#   metadata:
-#     name: ${NAME}
-#   spec:
-#     secretName: ${NAME}-tls
-#     issuerRef:
-#       name: le
-#       kind: ClusterIssuer
-#     commonName: APPLICATION_DOMAIN
-#     dnsNames:
-#     - www.${APPLICATION_DOMAIN}
-#     acme:
-#       config:
-#         - http01: {}
-#           domains:
-#           - ${APPLICATION_DOMAIN}
-#           - www.${APPLICATION_DOMAIN}       
+- apiVersion: certmanager.k8s.io/v1alpha1
+  kind: Certificate
+  metadata:
+    name: ${NAME}
+  spec:
+    secretName: ${NAME}-tls
+    issuerRef:
+      name: 
+      kind: ClusterIssuer
+    commonName: APPLICATION_DOMAIN
+    dnsNames:
+    - www.${APPLICATION_DOMAIN}
+    acme:
+      config:
+        - http01: {}
+          domains:
+          - ${APPLICATION_DOMAIN}
+          - www.${APPLICATION_DOMAIN}       
 - apiVersion: v1
   kind: Route
   metadata:
@@ -783,8 +785,6 @@ objects:
           imagePullPolicy: IfNotPresent 
           name: "crond"      
           volumeMounts:
-          - mountPath: "/var/run/nginx_ssl/${APPLICATION_DOMAIN}"
-            name: "${NAME}-tls"
           - mountPath: "/opt/app-root/etc"
             name: "crontab"          
           - mountPath: "/opt/app-root/src"
@@ -866,9 +866,6 @@ objects:
         - name: "${NAME}-data"
           persistentVolumeClaim:
             claimName: "${NAME}"
-        - name: "${NAME}-tls"
-          secret: 
-            secretName: "${NAME}-tls"
     triggers:
     - imageChangeParams:
         automatic: true
@@ -883,6 +880,20 @@ objects:
 - apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
+    name: "${DATABASE_SERVICE_NAME}"
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    storageClassName: local-storage
+    selector:
+      matchLabels:
+        name: "${NAME}-db"    
+    resources:
+      requests:
+        storage: "${DB_VOLUME_CAPACITY}"
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
     name: "${NAME}"
   spec:
     accessModes:
@@ -893,13 +904,123 @@ objects:
         name: "${NAME}"        
     resources:
       requests:
-        storage: "${VOLUME_CAPACITY}"
+        storage: "${VOLUME_CAPACITY}"        
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: Exposes the database server
+    name: "${DATABASE_SERVICE_NAME}"
+  spec:
+    ports:
+    - name: mysql
+      port: 3306
+      targetPort: 3306
+    selector:
+      name: "${DATABASE_SERVICE_NAME}"
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    annotations:
+      description: Defines how to deploy the database
+      template.alpha.openshift.io/wait-for-ready: 'true'
+    name: "${DATABASE_SERVICE_NAME}"
+  spec:
+    replicas: 1
+    selector:
+      name: "${DATABASE_SERVICE_NAME}"
+    strategy:
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          name: "${DATABASE_SERVICE_NAME}"
+        name: "${DATABASE_SERVICE_NAME}"
+      spec:
+        containers:
+        - env:
+          - name: MYSQLD__QUERY_CACHE_TYPE
+            value: 'ON'          
+          - name: MYSQLD__QUERY_CACHE_SIZE
+            value: "50MB"
+          - name: MYSQLD__JOIN_BUFFER_SIZE
+            value: "1MB"
+          - name: MYSQLD__SORT_BUFFER_SIZE
+            value: "2MB"            
+          - name: MYSQLD__TMP_TABLE_SIZE
+            value: "50MB"
+          - name: MYSQLD__MAX_HEAP_TABLE_SIZE
+            value: "50MB"
+          - name: MYSQLD__INNODB_DOUBLEWRITE
+            value: "0"
+          - name: MYSQLD__INNODB_LOG_FILE_SIZE
+            value: "128M"
+          - name: MYSQLD__INNODB_BUFFER_POOL_SIZE
+            value: "1024M"
+          - name: MYSQLD__INNODB_BUFFER_POOL_INSTANCES
+            value: "2"          
+          - name: MYSQL_USER
+            valueFrom:
+              secretKeyRef:
+                key: database-user
+                name: "${NAME}"
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: database-password
+                name: "${NAME}"
+          - name: MYSQL_DATABASE
+            value: "${DATABASE_NAME}"
+          image: " "
+          livenessProbe:
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 3306
+            timeoutSeconds: 1
+          name: mysql
+          ports:
+          - containerPort: 3306
+          readinessProbe:
+            exec:
+              command:
+              - "/bin/sh"
+              - "-i"
+              - "-c"
+              - MYSQL_PWD="${MYSQL_PASSWORD}" mysql -h 127.0.0.1 -u ${MYSQL_USER} -D ${MYSQL_DATABASE} -e 'SELECT 1'
+            initialDelaySeconds: 5
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: "${MEMORY_MYSQL_LIMIT}"
+          volumeMounts:
+          - mountPath: "/opt/app-root/mysql"
+            name: "${DATABASE_SERVICE_NAME}-data"
+          - mountPath: "/tmp"
+            name: "tmp"  
+        volumes:
+        - name: "${DATABASE_SERVICE_NAME}-data"
+          persistentVolumeClaim:
+            claimName: "${DATABASE_SERVICE_NAME}"
+        - name: "tmp"
+          emptyDir:
+            medium: Memory          
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - mysql
+        from:
+          kind: ImageStreamTag
+          name: mariadb:10.3
+          namespace: "${NAMESPACE}"
+      type: ImageChange
+    - type: ConfigChange
 parameters:
 - description: The name assigned to all of the frontend objects defined in this template.
   displayName: Name
   name: NAME
   required: true
-  value: php-persistent
+  value: php-mysql-persistent
 - description: The OpenShift Namespace where the ImageStream resides.
   displayName: Namespace
   name: NAMESPACE
@@ -915,11 +1036,21 @@ parameters:
   name: MEMORY_LIMIT
   required: true
   value: 512Mi
+- description: Maximum amount of memory the MySQL container can use.
+  displayName: Memory Limit (MySQL)
+  name: MEMORY_MYSQL_LIMIT
+  required: true
+  value: 512Mi
 - description: Volume space available for data, e.g. 512Mi, 2Gi
   displayName: Volume Capacity
   name: VOLUME_CAPACITY
   required: true
   value: 2Gi
+- description: Volume space available for db, e.g. 512Mi, 2Gi
+  displayName: Volume Capacity
+  name: DB_VOLUME_CAPACITY
+  required: true
+  value: 1Gi  
 - description: The URL of the repository with your application source code.
   displayName: Git Repository URL
   name: SOURCE_REPOSITORY_URL
@@ -953,7 +1084,7 @@ parameters:
 - displayName: Database Service Name
   name: DATABASE_SERVICE_NAME
   required: true
-  value: mysql.oondeo
+  value: mysql
 - description: 'Database engine: postgresql, mysql or sqlite (default).'
   displayName: Database Engine
   name: DATABASE_ENGINE

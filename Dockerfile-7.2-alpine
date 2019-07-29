@@ -1,0 +1,37 @@
+FROM oondeo/alpine:3.9
+
+ARG PHP_PACKAGES="curl unit-php7 php7-ftp php7-pecl-timezonedb php7-common php7-zip php7-xml php7-xmlreader php7-xmlrpc php7-xsl php7-tidy php7-tokenizer php7-wddx php7-soap php7-sodium php7-sqlite3 php7-recode php7-pspell php7-session php7-shmop php7-simplexml php7-odbc php7-pdo_mysql php7-phar php7-opcache php7-openssl php7-pdo php7-ldap php7-mbstring php7-bz2 php7-calendar php7-ctype php7-curl php7-dba php7-dom php7-enchant php7-exif php7-pear php7-mysqli php7-mysqlnd php7-pdo_sqlite php7-gd php7-gettext php7-gmp php7-iconv php7-imap php7-intl php7-json php7-phpdbg php7-pecl-memcached php7-pecl-amqp php7-phalcon php7-pecl-mcrypt php7-pecl-msgpack php7-pecl-imagick php7-pear-mdb2_driver_mysql php7-pecl-xdebug php7-pear-net_smtp php7-pear-net_socket  php7-sockets php7-pear-net_sieve php7-pear-mail_mime php7-pecl-apcu php7-pecl-yaml php7-pecl-redis php7-pecl-zmq php7-pecl-event php7-pear-auth_sasl"
+ENV SUMMARY="PHP 7 image with standar modules"	\
+    DESCRIPTION="The image use scripts and configurations compatible \
+        with redhat openshift."
+
+LABEL summary="$SUMMARY" \
+      description="$DESCRIPTION" \
+      io.k8s.description="$DESCRIPTION" \
+      io.k8s.display-name="php 7" \
+      io.openshift.expose-services="8090:http,8091:http" \
+      io.openshift.tags="builder,php,php7,php72,php7.2,php-cgi,php-fcgi,php-cli" \
+      com.redhat.component="php" \
+      name="oondeo/php" \
+      version="$PHP_VERSION" \
+      release="2" \
+      maintainer="OONDEO <info@oondeo.es>"
+
+USER root
+
+#/usr/share/php7
+RUN apk --no-cache upgrade && apk-install $PHP_PACKAGES && mkdir -p /opt/app-root/unit && rm -rf /var/lib/unit && ln -s /opt/app-root/unit /var/lib/unit
+
+RUN ln -sf /dev/stdout /var/log/unit.log
+
+COPY s2i/bin $STI_SCRIPTS_PATH
+COPY etc /opt/app-root/etc/
+COPY lib /usr/local/lib
+
+RUN /usr/bin/docker-footer
+
+USER 1001
+
+CMD [ "run" ] 
+
+EXPOSE 8090 8091

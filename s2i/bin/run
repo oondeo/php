@@ -11,6 +11,8 @@ UNIT_CONFIG_DIR=${UNIT_CONFIG_DIR:-/opt/app-root/etc/unit}
 PHP_FPM_PIDFILE=${PHP_FPM_PIDFILE:-/run/php-fpm.pid}
 PHP_FPM_CONFIG_DIR=${PHP_FPM_CONFIG_DIR:-/opt/app-root/etc/php-fpm.d}
 
+unask 0002
+
 # A simple calculation for MaxRequestWorkers would be: Total Memory / Size Per Apache process.
 # The total memory is determined from the Cgroups and the average size for the
 # Apache process is estimated to 15MB.
@@ -20,6 +22,7 @@ PHP_FPM_CONFIG_DIR=${PHP_FPM_CONFIG_DIR:-/opt/app-root/etc/php-fpm.d}
 #[[ $max_clients_computed -le 4 ]] && max_clients_computed=4
 #export HTTPD_MAX_REQUEST_WORKERS=${HTTPD_MAX_REQUEST_WORKERS:-$max_clients_computed}
 #echo "-> Cgroups memory limit is set, using HTTPD_MAX_REQUEST_WORKERS=${HTTPD_MAX_REQUEST_WORKERS}"
+
 
 
 # envsubst < /opt/app-root/etc/conf.d/50-mpm-tuning.conf.template > /opt/app-root/etc/conf.d/50-mpm-tuning.conf
