@@ -38,7 +38,7 @@ objects:
       [adminer-dev]
       listen = /opt/app-root/var/run/adminer.sock
 
-      listen.mode = 0660
+      listen.mode = 0666
       catch_workers_output = yes
       ;access.log = /proc/self/fd/2
       ;access.format = "%R - %u %t \"%m %r%Q%q\" %s %f %{mili}d %{kilo}M %C%%"
@@ -75,7 +75,7 @@ objects:
       [${APPLICATION_DOMAIN}-dev]
       listen = /opt/app-root/var/run/${APPLICATION_DOMAIN}-dev.sock
 
-      listen.mode = 0660
+      listen.mode = 0666
       catch_workers_output = yes
       ;access.log = /proc/self/fd/2
       ;access.format = "%R - %u %t \"%m %r%Q%q\" %s %f %{mili}d %{kilo}M %C%%"
@@ -114,18 +114,18 @@ objects:
 
       catch_workers_output = yes
 
-      listen.mode = 0660
+      listen.mode = 0666
       ;access.log = /proc/self/fd/2
       ;slowlog = /proc/self/fd/2 
       ;access.format = "%R - %u %t \"%m %r%Q%q\" %s %f %{mili}d %{kilo}M %C%%"
 
-      pm = dynamic
-      pm.max_children = 8
+      pm = static
+      pm.max_children = 6
       pm.start_servers = 4
       pm.min_spare_servers = 2
       pm.max_spare_servers = 5
       ;pm.process_idle_timeout = 10s;
-      pm.max_requests = 25000
+      pm.max_requests = 50000
       php_admin_value[open_basedir] = "/opt/app-root/src/${APPLICATION_DOMAIN}:/opt/app-root/var/lib:/usr/share/php:/usr/local/php:/usr/local/lib/php:/usr/local/share/php:/usr/lib/php7:/usr/lib/php:/tmp/${APPLICATION_DOMAIN}:/var/tmp/${APPLICATION_DOMAIN}:/run/php:/var/run/php"
       php_admin_value[session.save_path] = "/tmp/${APPLICATION_DOMAIN}"
       php_admin_value[soap.wsdl_cache_dir] = "/tmp/${APPLICATION_DOMAIN}"
@@ -186,6 +186,8 @@ objects:
                 
                     server {
                         listen 8080 default_server;
+                        server_name _;
+                        access_log off;
                         location ^~ /.well-known/acme-challenge/ {
                                         access_log off;
                                         log_not_found off;
@@ -198,11 +200,28 @@ objects:
                     }
                     server {
                         listen 8082  ssl http2 default_server;
+                        server_name _;
+                        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+                        ssl_certificate /opt/app-root/var/nginx/ssl/${APPLICATION_DOMAIN}/tls.pem;
+                        ssl_certificate_key /opt/app-root/var/nginx/ssl/${APPLICATION_DOMAIN}/tls.key;
+                        access_log off;
+                        location ^~ /.well-known/acme-challenge/ {
+                                        access_log off;
+                                        log_not_found off;
+                                        root /var/lib/letsencrypt;
+                                        autoindex off;
+                                        index index.html;
+                                        try_files $uri $uri/ =404;
+                        }                           
+                        return 301 https://$http_host$request_uri;
+                    }                    
+                    server {
+                        listen 8082  ssl http2;
                         ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
                         ssl_certificate /opt/app-root/var/nginx/ssl/${APPLICATION_DOMAIN}/tls.pem;
                         ssl_certificate_key /opt/app-root/var/nginx/ssl/${APPLICATION_DOMAIN}/tls.key;
 
-                        server_name _;
+                        server_name ${APPLICATION_DOMAIN} www.${APPLICATION_DOMAIN};
     
 
                         access_log off;
@@ -211,7 +230,7 @@ objects:
                         include server_cache_params;
 
                         root /opt/app-root/src/${APPLICATION_DOMAIN}/public_html;
-                        #index index.html index.htm index.php;
+                        index index.html index.htm index.php;
 
                         location ^~ /.well-known/acme-challenge/ {
                                         access_log off;
@@ -237,11 +256,6 @@ objects:
                             set $no_cache 1;
                         }                        
                         include /opt/app-root/src/${APPLICATION_DOMAIN}/nginx.conf;
-
-                        location / {
-                            #try_files /index.html /index.htm $uri $uri/ /index.php$is_args$args;
-                            try_files /index.html /index.htm $uri $uri/ /index.php$is_args$args;
-                        }
 
                         location ~* .(ogg|ogv|svg|svgz|eot|otf|woff|mp4|ttf|css|rss|atom|js|jpg|jpeg|gif|png|ico|zip|tgz|gz|rar|bz2|doc|xls|exe|ppt|tar|mid|midi|wav|bmp|rtf)$ {
                                 expires max;
@@ -275,13 +289,13 @@ objects:
                         }
 
                         location /wp-admin {
-                            limit_req zone=one burst=8 nodelay;
+                            # limit_req zone=one burst=8 nodelay;
                             index index.php;
                             set $no_cache 1;
                         }
-                        location /wp-login.php {
-                            limit_req zone=one burst=4 nodelay;                        
-                        }
+                        # location /wp-login.php {
+                        #     limit_req zone=one burst=4 nodelay;                        
+                        # }
                         location /wp-cron.php {
                             allow 127.0.0.1;
                             deny all;            
@@ -289,10 +303,21 @@ objects:
                         error_page 420 =200 @cache_php;
 
                         location @cache_php{
-
+                                fastcgi_pass_header 'Accept-Encoding ""';
+                                fastcgi_param Upgrade           $http_upgrade;
+                                fastcgi_param Connection        "upgrade";
+                                fastcgi_param Host              $host;
+                                fastcgi_param X-Real-IP         $remote_addr;
+                                fastcgi_param X-Forwarded-For   $proxy_add_x_forwarded_for;
+                                fastcgi_param X-Forwarded-Proto $scheme;
+                                fastcgi_param X-Forwarded-Host  $host;
+                                fastcgi_param X-Forwarded-Port  443;                     
+                                add_header X-Fastcgi-Cache $upstream_cache_status;
+                                fastcgi_pass_header Set-Cookie;
+                                fastcgi_pass_header Cookie;
                                 fastcgi_cache microcache;
                                 fastcgi_cache_valid 404 30m;
-                                fastcgi_cache_valid 200 301 302 10m;
+                                fastcgi_cache_valid 200 301 302 10s;
                                 fastcgi_cache_lock_timeout 6s;
                                 fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}.sock;
                                 fastcgi_index index.php;
@@ -301,7 +326,8 @@ objects:
                                 fastcgi_param HTTPS $fe_https;
                                 # fastcgi_param  PHP_VALUE   "auto_prepend_file=/opt/app-root/var/lib/yaxgui/external/header.php";
 
-                                include fastcgi_params;           
+                                include fastcgi_params;
+                                fastcgi_buffering off;           
                         }                                             
                         location = /index.php {
                             # try_files $uri =404;
@@ -313,9 +339,31 @@ objects:
                             #{{NGINX_CACHE}}
 
 
-                            include fastcgi_cache_params;
+                            # include fastcgi_cache_params;
+                            add_header X-Index-Cache $upstream_cache_status;
+                            # Allow caching of requests which contain the following headers.
+                            fastcgi_pass_header Set-Cookie;
+                            fastcgi_pass_header Cookie;
+                            fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
+                            
+                            fastcgi_no_cache $no_cache;
+                            fastcgi_cache_bypass $no_cache;
+                            
+                            fastcgi_cache microcache;
+                            fastcgi_cache_valid 404 30m;
+                            fastcgi_cache_valid 200 301 302 20s;
+                            fastcgi_cache_lock_timeout 6s;      
+                            # /fastcgi_cache_params                      
 
                             fastcgi_pass_header 'Accept-Encoding ""';
+                            fastcgi_param Upgrade           $http_upgrade;
+                            fastcgi_param Connection        "upgrade";
+                            fastcgi_param Host              $host;
+                            fastcgi_param X-Real-IP         $remote_addr;
+                            fastcgi_param X-Forwarded-For   $proxy_add_x_forwarded_for;
+                            fastcgi_param X-Forwarded-Proto $scheme;
+                            fastcgi_param X-Forwarded-Host  $host;
+                            fastcgi_param X-Forwarded-Port  443;
 
                             #fastcgi_pass 127.0.0.1:9000;
                             fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}.sock;
@@ -326,6 +374,7 @@ objects:
                             #fastcgi_param  PHP_VALUE   "auto_prepend_file=/usr/local/share/php/yaxgui/external/header.php";
 
                             include fastcgi_params;
+                            fastcgi_buffering off;
 
                         }                                             
                         location ~ \.(hh|php)$ {
@@ -341,6 +390,14 @@ objects:
                             # include fastcgi_cache_params;
 
                             fastcgi_pass_header 'Accept-Encoding ""';
+                            fastcgi_param Upgrade           $http_upgrade;
+                            fastcgi_param Connection        "upgrade";
+                            fastcgi_param Host              $host;
+                            fastcgi_param X-Real-IP         $remote_addr;
+                            fastcgi_param X-Forwarded-For   $proxy_add_x_forwarded_for;
+                            fastcgi_param X-Forwarded-Proto $scheme;
+                            fastcgi_param X-Forwarded-Host  $host;
+                            fastcgi_param X-Forwarded-Port  443;
 
                             #fastcgi_pass 127.0.0.1:9000;
                             fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}.sock;
@@ -369,6 +426,11 @@ objects:
                             send_timeout 600;                          
 
                         }
+
+                        location / {
+                            #try_files /index.html /index.htm $uri $uri/ /index.php$is_args$args;
+                            try_files /index.html /index.htm $uri $uri/ /index.php$is_args$args;
+                        }                        
 
                     }
     ${APPLICATION_DOMAIN}-dev.conf: |
@@ -459,7 +521,7 @@ objects:
 
                             include fastcgi_cache_params;
 
-                            fastcgi_pass_header 'Accept-Encoding ""';
+                            # fastcgi_pass_header 'Accept-Encoding ""';
 
                             #fastcgi_pass 127.0.0.1:9000;
                             fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}.sock;
@@ -484,7 +546,7 @@ objects:
 
                             # include fastcgi_cache_params;
 
-                            fastcgi_pass_header 'Accept-Encoding ""';
+                            # fastcgi_pass_header 'Accept-Encoding ""';
 
                             #fastcgi_pass 127.0.0.1:9000;
                             fastcgi_pass  unix:/opt/app-root/var/run/${APPLICATION_DOMAIN}.sock;
@@ -602,9 +664,9 @@ objects:
                         #set $rewrite_server_port 8083;
                         proxy_pass http://127.0.0.1:8081;
                         
-                        proxy_set_header Host ${APPLICATION_DOMAIN}; 
-                        proxy_set_header Forwarded  "for=$http_x_forwarded_for;host=${APPLICATION_DOMAIN};port=$http_x_forwarded_port;proto=$http_x_forwarded_proto"; 
-                        proxy_set_header X-Forwarded-Host  ${APPLICATION_DOMAIN}; 
+                        fastcgi_param Host ${APPLICATION_DOMAIN}; 
+                        fastcgi_param Forwarded  "for=$http_x_forwarded_for;host=${APPLICATION_DOMAIN};port=$http_x_forwarded_port;proto=$http_x_forwarded_proto"; 
+                        fastcgi_param X-Forwarded-Host  ${APPLICATION_DOMAIN}; 
                         add_header Access-Control-Allow-Origin "*";
 
                         proxy_redirect                  http://${APPLICATION_DOMAIN}/ $http_x_forwarded_proto://$http_x_forwarded_host:$http_x_forwarded_port/;
@@ -633,7 +695,7 @@ objects:
 
                             include fastcgi_cache_params;
 
-                            fastcgi_pass_header 'Accept-Encoding ""';
+                            # fastcgi_pass_header 'Accept-Encoding ""';
 
                             #fastcgi_pass 127.0.0.1:9000;
                             fastcgi_pass  unix:/opt/app-root/var/run/adminer.sock;
@@ -848,10 +910,12 @@ objects:
             cp cert1.pem /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/cert1.pem
             cp cert1.pem /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/fullchain1.pem
             cp privkey1.pem /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/privkey1.pem
-            ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/cert1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/cert.pem
-            ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/chain1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/chain.pem
-            ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/fullchain1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/fullchain.pem
-            ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/privkey1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/privkey.pem
+            if [ ! -e /etc/letsencrypt/live/${APPLICATION_DOMAIN}/privkey.pem ]; then
+              ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/cert1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/cert.pem
+              ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/chain1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/chain.pem
+              ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/fullchain1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/fullchain.pem
+              ln -s /etc/letsencrypt/archive_init/${APPLICATION_DOMAIN}/privkey1.pem /etc/letsencrypt/live/${APPLICATION_DOMAIN}/privkey.pem
+            fi
             exit 0
           name: init-certbot
           volumeMounts:
@@ -896,6 +960,8 @@ objects:
             limits:
               memory: "${MEMORY_LIMIT}"
         - env:
+          - name: NGINX_CONF_WATCH_PATH
+            value: "/etc/letsencrypt/live"
           - name: DOMAIN_PROD
             value: "${APPLICATION_DOMAIN}"
           - name: NGINX_SSL_PATH

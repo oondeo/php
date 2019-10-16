@@ -11,7 +11,7 @@ UNIT_CONFIG_DIR=${UNIT_CONFIG_DIR:-/opt/app-root/etc/unit}
 PHP_FPM_PIDFILE=${PHP_FPM_PIDFILE:-/run/php-fpm.pid}
 PHP_FPM_CONFIG_DIR=${PHP_FPM_CONFIG_DIR:-/opt/app-root/etc/php-fpm.d}
 
-unask 0002
+umask 0002
 
 # A simple calculation for MaxRequestWorkers would be: Total Memory / Size Per Apache process.
 # The total memory is determined from the Cgroups and the average size for the

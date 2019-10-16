@@ -1,10 +1,11 @@
-FROM php:7.2-fpm
-ARG PHP_VERSION=7.2
+FROM php:7.3-fpm
+ARG PHP_VERSION=7.3
 ARG PHALCON_VERSION=v3.4.4
 ARG RUN_DEPS="graphviz"
 ARG PHP_EXTENSIONS="bcmath bz2 calendar ctype curl dom exif fileinfo gettext gmp hash iconv intl json ldap mbstring mysqli pdo pdo_mysql opcache pdo_sqlite phar posix session shmop simplexml snmp sodium soap tidy wddx xml xmlreader xmlrpc xmlwriter xsl zip"
-ARG PHP_PECL_DEPS="libgraphicsmagick1-dev libtidy-dev libsodium-dev libxslt1-dev libsnmp-dev libreadline-dev libpcre3 libpcre3-dev  libmcrypt-dev imagemagick zlib1g-dev libbz2-dev libgmp-dev libsqlite3-dev libicu-dev libldap2-dev libreadline-dev  libpspell-dev libcurl4-openssl-dev libxml2-dev libssl-dev libpng-dev libfreetype6-dev libjpeg62-turbo-dev"
-ARG PHP_PECL_EXTENSIONS="apcu-5.1.17 redis-4.3.0 xdebug-2.7.0 mcrypt-1.0.2" # imagick-3.4.3 
+ARG PHP_PECL_DEPS="git libzip-dev libgraphicsmagick1-dev libtidy-dev libsodium-dev libxslt1-dev libsnmp-dev libreadline-dev libpcre3 libpcre3-dev  libmcrypt-dev imagemagick zlib1g-dev libbz2-dev libgmp-dev libsqlite3-dev libicu-dev libldap2-dev libreadline-dev  libpspell-dev libcurl4-openssl-dev libxml2-dev libssl-dev libpng-dev libfreetype6-dev libjpeg62-turbo-dev"
+ARG PHP_PECL_EXTENSIONS="apcu-5.1.17 redis-5.0.2 xdebug-2.7.2 mcrypt-1.0.2" 
+# imagick-3.4.3 
 ENV SUMMARY="PHP 7 image with standar modules"	\
     DESCRIPTION="The image use scripts and configurations compatible \
         with redhat openshift."
@@ -14,7 +15,7 @@ LABEL summary="$SUMMARY" \
       io.k8s.description="$DESCRIPTION" \
       io.k8s.display-name="php 7" \
       io.openshift.expose-services="9000:fcgi" \
-      io.openshift.tags="builder,php,php7,php72,php7.2,php-cgi,php-fcgi,php-cli" \
+      io.openshift.tags="builder,php,php7,php72,php7.3,php-cgi,php-fcgi,php-cli" \
       com.redhat.component="php" \
       name="oondeo/php" \
       version="$PHP_VERSION" \
@@ -40,9 +41,9 @@ ENV BASH_ENV=/opt/app-root/etc/scl_enable \
     ENV=/opt/app-root/etc/scl_enable \
     XDG_DATA_HOME=$HOME/.local/share \
     DEBIAN_FRONTEND=noninteractive \
-    MUSL_LOCPATH="/usr/share/i18n/locales/musl" \
-    LANG=es_ES.UTF-8 LANGUAGE=es_ES.UTF-8 LC_ALL=es_ES.UTF-8 LC_CTYPE=es_ES.UTF-8 \
     PROMPT_COMMAND=". /opt/app-root/etc/scl_enable"
+#    MUSL_LOCPATH="/usr/share/i18n/locales/musl" 
+#    LANG=es_ES.UTF-8 LANGUAGE=es_ES.UTF-8 LC_ALL=es_ES.UTF-8 LC_CTYPE=es_ES.UTF-8 
 
 # Copy extra files to the image.
 COPY ./root/root/ /
@@ -68,7 +69,7 @@ RUN set -eux; apt-get update && apt-get install -y --no-install-recommends  $RUN
     && pecl install $PHP_PECL_EXTENSIONS \  
     && git clone https://github.com/tideways/php-xhprof-extension.git /usr/src/php/ext/tideways_xhprof && cd /usr/src/php/ext/tideways_xhprof \
     && docker-php-ext-configure /usr/src/php/ext/tideways_xhprof \
-    && docker-php-ext-install "$(nproc)" /usr/src/php/ext/tideways_xhprof \
+    && docker-php-ext-install -j "$(nproc)" /usr/src/php/ext/tideways_xhprof \
     && git clone --branch $PHALCON_VERSION https://github.com/phalcon/cphalcon  /usr/src/php/ext/cphalcon && cd /usr/src/php/ext/cphalcon/build \
     && ./install \
     && clean.sh
