@@ -2,15 +2,19 @@
 $_xhprof = [];
 
 // Change these:
-$_xhprof['dbtype'] = 'mysql'; // Only relevant for PDO
+$_xhprof['dbtype'] = 'sqlite'; // Only relevant for PDO
 $_xhprof['dbhost'] = 'localhost';
-$_xhprof['dbuser'] = 'root';
-$_xhprof['dbpass'] = 'password';
-$_xhprof['dbname'] = 'xhprof';
+$_xhprof['dbuser'] = '';
+$_xhprof['dbpass'] = '';
+$_xhprof['dbname'] =  $_ENV['TMP'].'/xhprof.db';
+if (!file_exists($_xhprof['dbname'])){
+    copy(realpath(dirname(__FILE__)).'/xhprof.db',$_xhprof['dbname']);
+}
 $_xhprof['dbadapter'] = 'Pdo';
 $_xhprof['servername'] = 'myserver';
 $_xhprof['namespace'] = 'myapp';
-$_xhprof['url'] = 'http://url/to/xhprof/xhprof_html';
+$_xhprof['url'] = $_SERVER['REQUEST_SCHEME'].$_SERVER['HTTP_HOST']. '/xhprof_html';
+
 /*
  * Switch to JSON for better performance and support for larger profiler data sets.
  * Choices are 'php' or 'json'
@@ -46,7 +50,12 @@ $_xhprof['doprofile'] = false;
 $controlIPs = [];
 $controlIPs[] = "127.0.0.1";   // localhost, you'll want to add your own ip here
 $controlIPs[] = "::1";         // localhost IP v6
-
+if ($_ENV['XHPROF_IPS']){
+    $controlIPs = explode($_ENV['XHPROF_IPS']);
+}
+if (strval($_ENV['XHPROF_IPS']) == "false"){
+    $controlIPs = false;
+}
 //$otherURLS = array();
 
 // ignore builtin functions and call_user_func* during profiling
